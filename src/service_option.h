@@ -1,6 +1,8 @@
 #ifndef _SERVICE_OPTION_H_
 #define _SERVICE_OPTION_H
 
+#include <stdbool.h>
+
 #define OPTION_NAME_LEN 255
 #define OPTION_VALUE_LEN 1*1024
 
@@ -11,6 +13,7 @@ typedef struct ServiceOption
 	char		description[OPTION_VALUE_LEN];
 	int			provider;
 	int			required;
+	bool        is_set;
 	struct 		ServiceOption *next;
 	struct 		ServiceOption *prev;
 }ServiceOption;

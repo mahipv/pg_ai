@@ -17,6 +17,13 @@
                \"name\":\"dalle-2\",\n\
                \"prompt\":\"Make a picture for the following \",\n\
                \"promptagg\":\"Make a picture with the following words\"\n\
+            },\n\
+            {\n\
+               \"name\":\"ada\",\n\
+               \"query\": \"<SELECT statement to materialize>\",\n\
+               \"algorithm\": \"cosine_similarity\",\n\
+               \"prompt\": \" Additional prompt data to the SQL query output\",\n\
+               \"limit\": \"1\" \n\
             }\n\
          ]\n\
       },\n\

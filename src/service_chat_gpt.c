@@ -16,8 +16,9 @@
  *
  */
 static void
-define_options(ServiceData  *service_data)
+define_options(AIService *ai_service)
 {
+	ServiceData  *service_data = ai_service->service_data;
 	define_new_option(&(service_data->options), OPTION_PROVIDER_KEY,
 					  OPTION_PROVIDER_KEY_DESC, 1/*provider*/, 1/*required*/);
 	define_new_option(&(service_data->options), OPTION_SERVICE_PROMPT,
@@ -46,7 +47,7 @@ chat_gpt_init_service_options(void *service)
 	strcpy(ai_service->service_data->provider, SERVICE_PROVIDER_OPEN_AI);
 	strcpy(ai_service->service_data->name, SERVICE_CHAT_GPT);
 	strcpy(ai_service->service_data->description, CHAT_GPT_DESCRIPTION);
-	define_options(ai_service->service_data);
+	define_options(ai_service);
 }
 
 /*
@@ -134,7 +135,7 @@ chat_gpt_init_service_data(void *options, void *service, void *file_path)
 	column_data = options;
 
 	service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
-	service_data->max_response_size = SERVICE_MAX_REQUEST_SIZE;
+	service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
 
 	/* TODO convert all these to the options to be read from the option file */
 	/* initialize data partly here */

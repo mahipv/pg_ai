@@ -74,7 +74,7 @@ write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 		fprintf(stderr, "not enough memory (realloc returned NULL)\n");
         return 0;
 	}
-	fprintf(stderr, "real size %ld\n", realsize);
+	// fprintf(stderr, "real size %ld\n", realsize);
     memcpy((char*)(response->data)+response->data_size, (char *)contents, realsize);
     response->data_size += realsize;
     return realsize;
@@ -218,10 +218,10 @@ rest_transfer(AIService *ai_service)
 	curl = curl_easy_init();
 	if (curl)
     {
+
 		curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, debug_curl);
 		//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 		make_curl_headers(curl, ai_service);
-
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)(ai_service->rest_response));
 
@@ -239,6 +239,7 @@ rest_transfer(AIService *ai_service)
 		res = curl_easy_perform(curl);
 		if(res != CURLE_OK)
 		{
+			ereport(INFO,(errmsg("CURL ERROR: %d\n\n", res)));
 			ai_service->rest_response->response_code = 0x1;
 			strcpy(ai_service->rest_response->data, TRANSFER_FAIL_MSG);
 			ai_service->rest_response->data_size = strlen(TRANSFER_FAIL_MSG);

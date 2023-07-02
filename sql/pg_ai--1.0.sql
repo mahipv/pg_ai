@@ -32,3 +32,16 @@ RETURNS TEXT AS 'MODULE_PATHNAME', 'pg_ai_help' LANGUAGE C IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION pg_ai_help_options()
 RETURNS TEXT AS 'MODULE_PATHNAME', 'pg_ai_help_options' LANGUAGE C IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION create_vector_store(
+	ai_service		NAME,
+	param_file		NAME,
+	store_name  	TEXT
+)RETURNS TEXT AS 'MODULE_PATHNAME', 'create_vector_store' LANGUAGE C IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION query_vector_store(
+	ai_service		NAME,
+	param_file		NAME,
+	store_name  	TEXT,
+	prompt  		TEXT
+)RETURNS SETOF record AS 'MODULE_PATHNAME', 'query_vector_store' LANGUAGE C IMMUTABLE;

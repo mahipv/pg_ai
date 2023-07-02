@@ -1,6 +1,7 @@
 #include "ai_service.h"
 #include "service_chat_gpt.h"
 #include "service_dall_e2.h"
+#include "service_ada.h"
 
 /*
  * Clear the AIService data
@@ -16,6 +17,7 @@ initialize_self(AIService *ai_service)
 	ai_service->rest_request = NULL;
 	ai_service->rest_response = NULL;
 	ai_service->is_aggregate = 0;
+	ai_service->function_flags = 0;
 }
 
 /*
@@ -69,6 +71,30 @@ initialize_dalle2(AIService *ai_service)
 }
 
 /*
+ * Initialize AIService vtable with the function from the ChatGPT service.
+ *
+ * @param[out]	ai_service	pointer to the AIService to be initialized
+ * @return		void
+ *
+ */
+static int
+initialize_ada(AIService *ai_service)
+{
+	/* PG <-> AI functions */
+	ai_service->get_service_help=ada_help;
+	ai_service->init_service_options = ada_init_service_options;
+	ai_service->init_service_data = ada_init_service_data;
+	ai_service->cleanup_service_data = ada_cleanup_service_data;
+
+	/* AI <-> REST functions */
+	ai_service->set_service_buffers =  ada_set_service_buffers;
+	ai_service->add_service_headers = ada_add_service_headers;
+	ai_service->post_header_maker = ada_post_header_maker;
+	ai_service->rest_transfer = ada_rest_transfer;
+
+	return 0;
+}
+/*
  * Initialize the AIService based on the service parameter.
  *
  * @param[in/out]	ai_service	pointer to the AIService to be initialized
@@ -87,6 +113,9 @@ initialize_service(const char *name, AIService *ai_service)
 
 	if (!strcmp(SERVICE_DALL_E2, name))
 		return_value = initialize_dalle2(ai_service);
+
+	if (!strcmp(SERVICE_ADA, name))
+		return_value = initialize_ada(ai_service);
 
 	/* does not match any supported service */
 	if (return_value == RETURN_ZERO)

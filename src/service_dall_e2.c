@@ -17,8 +17,9 @@
  *
  */
 static void
-define_options(ServiceData  *service_data)
+define_options(AIService *ai_service)
 {
+	ServiceData  *service_data = ai_service->service_data;
 	define_new_option(&(service_data->options), OPTION_PROVIDER_KEY,
 					  OPTION_PROVIDER_KEY_DESC, 1/*provider*/, 1/*required*/);
 	define_new_option(&(service_data->options), OPTION_SERVICE_PROMPT,
@@ -47,7 +48,7 @@ dalle_e2_init_service_options(void *service)
 	strcpy(ai_service->service_data->provider, SERVICE_PROVIDER_OPEN_AI);
 	strcpy(ai_service->service_data->name, SERVICE_DALL_E2);
 	strcpy(ai_service->service_data->description, DALLE_E2_DESCRIPTION);
-	define_options(ai_service->service_data);
+	define_options(ai_service);
 }
 
 /*

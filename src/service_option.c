@@ -39,6 +39,7 @@ define_new_option(ServiceOption **option_list, const char *name, char *descripti
 	strncpy(new_node->description, description, OPTION_VALUE_LEN);
 	new_node->provider = provider_option;
 	new_node->required = required;
+	new_node->is_set = false;
 
 	while(last_node && last_node->next != NULL)
 		last_node = last_node->next;
@@ -75,9 +76,11 @@ set_option_value(ServiceOption *list, const char *name, const char *value)
 		if (!strcmp(name, node->name))
 		{
 			strncpy(node->value, value, OPTION_VALUE_LEN);
+			node->is_set = true;
 			found = 1;
 			break;
 		}
+		node = node->next;
 	}
 
 	return !found;

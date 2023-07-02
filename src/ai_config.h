@@ -9,6 +9,7 @@
 #define SERVICE_PROVIDER_OPEN_AI "OpenAI"
 #define SERVICE_CHAT_GPT "chatgpt"
 #define SERVICE_DALL_E2 "dall-e2"
+#define SERVICE_ADA "ada"
 #define UNSUPPORTED_SERVICE_MSG "Service is not supported."
 
 /* buffer sizes */
@@ -44,6 +45,7 @@
 #define TRANSFER_FAIL_MSG "Transfer call failed. Try again."
 #define BIG_DATA_FAIL_MSG "Data to big, model only supports %lu words."
 
+#define COLUMN_NAME_LEN 255
 /* -----------------chatgpt---------- */
 #define CHAT_GPT_API_URL "https://api.openai.com/v1/completions"
 #define CHAT_GPT_SUMMARY_PROMPT "Get summary of the following in 1 lines."
@@ -61,7 +63,7 @@
 #define RESPONSE_JSON_CHOICE "choices"
 #define RESPONSE_JSON_KEY "text"
 
-#define CHAT_GPT_HELP "Usage:\n"\
+#define CHAT_GPT_HELP "Functions:\n"\
 	"get_insight(\"chatgpt\", <column name>, '<json options file>') \n" \
 	"get_insight_agg(\"chatgpt\", <column name>, '<json options file>') \n"
 /* -----------------chatgpt---------- */
@@ -75,29 +77,72 @@
 #define RESPONSE_JSON_DATA "data"
 #define RESPONSE_JSON_URL "url"
 
-#define DALLE_E2_HELP "Usage:\n"\
+#define DALLE_E2_HELP "Functions:\n"\
 	"get_insight(\"dalle-2\", <column name>, '<json options file>') \n"\
 	"get_insight_agg(\"dalle-2\", <column name>, '<json options file>') \n"
 /* -----------------dalle-2---------- */
 
-/* -----------------8<--json options---------- */
-#define OPTION_PROVIDERS "providers"
-#define OPTION_PROVIDER_NAME "name"
-#define OPTION_PROVIDER_KEY "key"
 
+/* -----------------ada---------- */
+#define ADA_API_URL "https://api.openai.com/v1/embeddings"
+#define ADA_DESCRIPTION "Open AI's embeddings model "
+
+#define ADA_HELP "Functions:\n"\
+	"create_vector_store(\"ada\", '<json options file>', '<new store_name>') \n" \
+	"query_vector_store(\"ada\", '<json options file>', '<store_name>', '<natural language prompt>') \n"
+
+#define ADA_FUNCTION_CREATE_VECTOR_STORE 0x00000001
+#define ADA_FUNCTION_QUERY_VECTOR_STORE  0x00000002
+#define SQL_QUERY_MAX_LENGTH 256*1024
+// seems const - TODO
+#define ADA_EMBEDDINGS_LIST_SIZE 1536
+
+#define EMBEDDINGS_COLUMN_NAME "embeddings"
+#define PK_SUFFIX	"_id"
+#define EMBEDDINGS_COSINE_SIMILARITY "cosine_similarity"
+
+#define PG_EXTENSION_PG_VECTOR "vector"
+/* -----------------ada---------- */
+
+/* -----------------8<--json options---------- */
+/* Add new options that need to be read from the json file here */
+#define OPTION_PROVIDERS "providers"
 #define OPTION_PROVIDERS_DESC "The provider."
+
+#define OPTION_PROVIDER_NAME "name"
 #define OPTION_PROVIDER_NAME_DESC "The AI service provider."
-#define OPTION_PROVIDER_KEY_DESC "Key value to access the service (from service provider)."
+
+#define OPTION_PROVIDER_KEY "key"
+#define OPTION_PROVIDER_KEY_DESC "API Key value from the service provider."
 
 #define OPTION_SERVICES "services"
-#define OPTION_SERVICE_NAME "name"
-#define OPTION_SERVICE_PROMPT "prompt"
-#define OPTION_SERVICE_PROMPT_AGG "promptagg"
-
 #define OPTION_SERVICES_DESC "The AIservices offered by the provider."
+
+#define OPTION_SERVICE_NAME "name"
 #define OPTION_SERVICE_NAME_DESC "The name of the AI service."
-#define OPTION_SERVICE_PROMPT_DESC "The prompt used for the get_insight() function."
+
+#define OPTION_SERVICE_PROMPT "prompt"
+#define OPTION_SERVICE_PROMPT_DESC "The string to be used as input to the LLM."
+
+#define OPTION_SERVICE_PROMPT_AGG "promptagg"
 #define OPTION_SERVICE_PROMPT_AGG_DESC "The prompt used for the get_insight_agg() function."
+
+#define OPTION_STORE_NAME "store_name"
+#define OPTION_STORE_NAME_DESC "Table name having the materialised data.(function parameter)"
+
+#define OPTION_SQL_QUERY "query"
+#define OPTION_SQL_QUERY_DESC "The SQL query(syntactically correct) to materialize."
+
+#define OPTION_NL_QUERY "prompt"
+#define OPTION_NL_QUERY_DESC "Prompt to search for matching data in the store.(function parameter)"
+
+#define OPTION_RECORD_COUNT "limit"
+#define OPTION_RECORD_COUNT_DESC "No of records to display."
+
+#define OPTION_MATCHING_ALGORITHM "algorithm"
+#define OPTION_MATCHING_ALGORITHM_DESC "Vector matching algorithm."
+
+
 /* ---------------------json options-->8------ */
 
 #endif /* _AI_CONFIG_H_*/

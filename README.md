@@ -16,6 +16,10 @@ every time.
 This extension #pg_ai implements the following functions for data insights
 
 ```sql
+create_vector_store('<service>', '<options file>', '<new store_name>')
+
+query_vector_store('<service>', '<options file>', '<store_name>', '<natural language prompt>')
+
 get_insight('<service>', <column>, '<options file>')
 
 get_insight_agg('<service>', <column>, '<options file>')
@@ -24,7 +28,9 @@ get_insight_agg('<service>', <column>, '<options file>')
 ## Build & Installation
 
 - pg_ai uses libcurl for REST communication, make sure the curl library is installed.
+- uses the pgvector extension for vector operations, make sure the extension is installed.
 - check that pg_config is installed and available in the system's PATH.
+- Use of embeddings/vector functions depends on the 'pg_vector' extension.
 ```sh
 cd pg_ai
 make install
@@ -41,19 +47,53 @@ Examples:
 CREATE EXTENSION pg_ai;
 ```
 
-### 1. Function ```get_insight()```
-
-Say there is a table 'information' and has data, which needs re-interpretation
+### Function ```create_vector_store()```
 ```sql
-postgres=# \d information
-                            Table "public.information"
- Column |  Type   | Collation | Nullable |                 Default
---------+---------+-----------+----------+-----------------------------------------
- id     | integer |           | not null | nextval('information_id_seq'::regclass)
- entry  | text    |           |          |
-Indexes:
-    "information_pkey" PRIMARY KEY, btree (id)
+postgres=# SELECT create_vector_store('ada', '/home/pg_ai.json', 'movie_lake_1');
+INFO:
+Processing query ... "SELECT * FROM public.movies WHERE release_year > 1990"
+
+ create_vector_store
+---------------------
+ movie_lake_1
+(1 row)
 ```
+
+### Function ```query_vector_store()```
+
+Query the store with prompt(string) not necssarily matching the data. This is supposed to bring out the related records.
+
+```sql
+postgres=# SELECT query_vector_store('ada',  '/home/pg_ai.json', 'movie_lake_1', 'hulk');
+
+INFO:  Meta Data ( id  name  release_year  genre  summary )
+query_vector_store
+-------------------
+ (20,"Avengers: Endgame",2019,Action,"After the devastating events of Avengers: Infinity War, the universe is in ruins. With the help of remaining allies, the Avengers assemble once more to undo Thanos' actions and restore order to the universe.")
+(1 row)
+
+
+
+postgres=# SELECT query_vector_store('ada',  '/home/pg_ai.json', 'movie_lake_1', 'iceberg');
+
+INFO:  Meta Data ( id  name  release_year  genre  summary )
+query_vector_store
+-------------------
+ (8,Titanic,1997,Romance,"A seventeen-year-old aristocrat falls in love with a kind but poor artist aboard the luxurious, ill-fated R.M.S. Titanic.")
+(1 row)
+
+
+
+postgres=# SELECT query_vector_store('ada',  '/home/pg_ai.json', 'movie_lake_1', 'maximus');
+
+INFO:  Meta Data ( id  name  release_year  genre  summary )
+ query_vector_store
+-------------------
+ (12,Gladiator,2000,Action,"A former Roman General sets out to exact vengeance against the corrupt emperor who murdered his family and sent him into slavery.")
+(1 row)
+```
+
+### Function ```get_insight()```
 
 ```sql
 postgres=# SELECT entry FROM information WHERE id > 0 AND id < 5;
@@ -80,7 +120,7 @@ postgres=# SELECT entry, get_insight('chatgpt', entry, '/home/pg_ai.json') AS In
 
 ```
 
-### 2. Function ```get_insight_agg()```
+### Function ```get_insight_agg()```
 
 Say a table 'chat' has the following data in the 'message' column
 
@@ -137,7 +177,7 @@ Make sure the API key from your OpenAI account is set correctly in the below jso
    "providers":[
       {
          "name":"OpenAI",
-         "key":"<API Authorization KEY from your OpenAI account>",
+         "key":"<API authorization KEY of your OpenAI account>",
          "services":[
             {
                "name":"chatgpt",
@@ -148,6 +188,13 @@ Make sure the API key from your OpenAI account is set correctly in the below jso
                "name":"dall-e2",
                "prompt":"Make a picture for the following ",
                "promptagg":"Make a picture with the following words"
+            },
+            {
+               "name":"ada",
+               "query": "<SELECT query to create the vector store>",
+               "prompt": "The input string along with the query data",
+               "algorithm": "<vector matching algorithm(cosine_similarity)>",
+               "limit": "<No of matching data records to be fetched>"
             }
          ]
       },
@@ -179,21 +226,19 @@ DROP EXTENSION pg_ai;
 
 ## Notes
 
-Currently supported LLMs.
+Currently supported models.
 
-1. ChatGPT
-2. Dall-E2
+1. OpenAI - ChatGPT
+2. OpenAI - Dall-E2
+3. OpenAI - ADA(embeddings)
 
 ## TODOs
-* Support to choose model within the AI service.
-* Error reporting/reponse to be streamlined.
-* Better PG context management(caching for faster REST calls).
-* Support curl read callbacks for large data transfers.
-* Add test suite.
-* i18n/uncode, data translation service support.
-* Support parallel calls within/across AI services.
-* Support for AWS comprehend/bard/OpenAI wishper/+.
-* Context analysis of multi-data with chatgpt-3.5-turbo.
+
+* Incorporate integration with additional local and remote LLMs.
+* Implement parallelization and background loading of embedding vectors.
+* Enhance support for curl read callbacks.
+* Develop tokenization mechanism for larger row data.
+* Expand compatibility for other vector similarity algorithms.
 
 ## Disclaimer
 

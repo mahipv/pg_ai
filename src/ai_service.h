@@ -38,11 +38,11 @@ typedef struct ServiceData
 	char			description[PG_AI_NAME_LENGTH];
 	char			url[SERVICE_DATA_SIZE];
 	char			key[SERVICE_DATA_SIZE];
-	char 			request[SERVICE_DATA_SIZE];
+	char 			request[SERVICE_MAX_RESPONSE_SIZE];
 	size_t  		max_request_size;
 	char 			prompt[SERVICE_DATA_SIZE];
 	size_t  		max_prompt_size;
-	char    		response[SERVICE_DATA_SIZE];
+	char    		response[SERVICE_MAX_RESPONSE_SIZE];
 	size_t  		max_response_size;
 	ServiceOption 	*options;
 }ServiceData;
@@ -91,6 +91,7 @@ typedef struct AIService
 	RestResponse 				*rest_response;
 	/* TODO Convert this to flags */
 	int		 					is_aggregate;
+	int 						function_flags;
 } AIService;
 
 void 			initialize_self(AIService *ai_service);
