@@ -15,5 +15,5 @@ void 	chat_gpt_post_header_maker(char *buffer, const size_t maxlen, const char *
 								   const size_t len);
 int 	chat_gpt_add_service_headers(CURL *curl, struct curl_slist **headers, void *service);
 void 	chat_gpt_init_service_options(void *service);
-
+int     chat_gpt_set_and_validate_options(void *service, void *function_options);
 #endif /* _SERVICE_CHAT_GPT_H_ */

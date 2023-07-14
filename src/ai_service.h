@@ -1,8 +1,8 @@
 #ifndef _AI_SERVICE_H_
 #define _AI_SERVICE_H_
 
-#include "ai_config.h"
 #include <stdio.h>
+#include "ai_config.h"
 
 /*
  * struct for the curl REST request info
@@ -56,7 +56,7 @@ typedef void    (*InitServiceOptions)(void *ai_service);
 typedef int 	(*InitServiceData)(void *options, void *ai_service, void *key);
 typedef void 	(*RestTransfer)(void *ai_service);
 typedef int 	(*CleanupServiceData)(void *ai_service);
-
+typedef int     (*SetAndValidateOptions)(void *service, void *function_params);
 /* AIService <-> Curl Interactions */
 typedef void 	(*SetServiceBuffers)(RestRequest *rest_request,
 									 RestResponse *rest_response,
@@ -77,6 +77,7 @@ typedef struct AIService
 	GetServiceDescription		get_service_description;
 	GetServiceHelp				get_service_help;
 	InitServiceOptions			init_service_options;
+	SetAndValidateOptions       set_and_validate_options;
 	InitServiceData				init_service_data;
 	RestTransfer	 			rest_transfer;
 	CleanupServiceData			cleanup_service_data;
@@ -90,7 +91,6 @@ typedef struct AIService
 	RestRequest 				*rest_request;
 	RestResponse 				*rest_response;
 	/* TODO Convert this to flags */
-	int		 					is_aggregate;
 	int 						function_flags;
 } AIService;
 

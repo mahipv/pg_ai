@@ -83,22 +83,54 @@ ada_help(char *help_text, const size_t max_len)
 		strncpy(help_text, ADA_HELP, max_len);
 }
 
-/*
- * Read the json options file and set the values in the options list for
- * the chatgpt service
- *
- * @param[in]		file_path	the help text is reurned in this array
- * @param[in/out]	ai_service	pointer to the AIService which has the
- *								defined option list
- * @return			zero on success, non-zero otherwise
- *
- */
-static int
-load_and_validate_options(const char *file_path, AIService *ai_service)
+int
+ada_set_and_validate_options(void *service, void *function_options)
 {
-	int 			ret_val = RETURN_ZERO;
-	ServiceOption 	*options = ai_service->service_data->options;
+	PG_FUNCTION_ARGS = (FunctionCallInfo)function_options;
+	AIService			*ai_service = (AIService *)service;
+	ServiceOption 		*options;
+	char                count_str[10];
+	int					count;
 
+	if (!PG_ARGISNULL(1))
+		set_option_value(ai_service->service_data->options, OPTION_PROVIDER_KEY,
+						 text_to_cstring(PG_GETARG_TEXT_PP(1)));
+
+	if (!PG_ARGISNULL(2))
+		set_option_value(ai_service->service_data->options, OPTION_STORE_NAME,
+						 NameStr(*PG_GETARG_NAME(2)));
+
+	/* create store function */
+	if (ai_service->function_flags & ADA_FUNCTION_CREATE_VECTOR_STORE)
+	{
+		if (!PG_ARGISNULL(3))
+			set_option_value(ai_service->service_data->options, OPTION_SQL_QUERY,
+							 text_to_cstring(PG_GETARG_TEXT_PP(3)));
+		if (!PG_ARGISNULL(4))
+			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT,
+							NameStr(*PG_GETARG_NAME(4)));
+	}
+
+	/* query store function */
+	if (ai_service->function_flags & ADA_FUNCTION_QUERY_VECTOR_STORE)
+	{
+		if (!PG_ARGISNULL(3))
+			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT,
+							 text_to_cstring(PG_GETARG_TEXT_PP(3)));
+
+		/* limiting the record count out to MAX_COUNT_RECORDS */
+		count = PG_ARGISNULL(4) ? MIN_COUNT_RECORDS : PG_GETARG_INT16((4));
+		if (count > MAX_COUNT_RECORDS) count = MAX_COUNT_RECORDS;
+		if (count < 0) count = MIN_COUNT_RECORDS;
+		sprintf(count_str, "%d", count);
+		set_option_value(ai_service->service_data->options, OPTION_RECORD_COUNT, count_str);
+
+		/* TODO for now only consine similarity is supported */
+		set_option_value(ai_service->service_data->options, OPTION_MATCHING_ALGORITHM,
+								EMBEDDINGS_COSINE_SIMILARITY);
+	}
+
+	options = ai_service->service_data->options;
 	while (options)
 	{
 		// paramters passed to function take presidence
@@ -107,28 +139,19 @@ load_and_validate_options(const char *file_path, AIService *ai_service)
 			options = options->next;
 			continue;
 		}
-		ret_val = get_option_from_file(file_path,
-									   (ai_service->get_provider_name)(ai_service),
-									   (ai_service->get_service_name)(ai_service),
-									   options->provider, options->name,
-									   options->value, OPTION_VALUE_LEN);
-
-		/* unable to read the option value */
-		if (ret_val)
+		else
 		{
 			/* required and not set */
 			if (options->required)
 			{
-				ereport(INFO,(errmsg("Required value for %s missing.\n",options->name)));
+				ereport(INFO,(errmsg("Required value for option \"%s\" missing.\n",options->name)));
 				return RETURN_ERROR;
 			}
 		}
 		options = options->next;
 	}
-	options = ai_service->service_data->options;
 	return RETURN_ZERO;
 }
-
 /*
  * This function is called from the PG layer after it has the table data and
  * before invoking the REST transfer call. Load the json options(will be used
@@ -162,11 +185,6 @@ ada_init_service_data(void *options, void *service, void *file_path)
 		return RETURN_ERROR;
 	}
 
-	/* initialize read the rest of the data from file */
-	if (load_and_validate_options((char*)file_path, ai_service))
-		return RETURN_ERROR;
-
-
 	//print_service_options(ai_service->service_data->options, 1);
 
 	/* TODO
@@ -185,35 +203,33 @@ ada_init_service_data(void *options, void *service, void *file_path)
 		snprintf(query, SQL_QUERY_MAX_LENGTH, "CREATE TABLE %s AS %s",
 				get_option_value(ai_service->service_data->options, OPTION_STORE_NAME),
 				get_option_value(ai_service->service_data->options, OPTION_SQL_QUERY));
-		execute_query_spi(query);
+		execute_query_spi(query, false/*read only*/);
 
 		snprintf(query, SQL_QUERY_MAX_LENGTH, "ALTER TABLE %s ADD COLUMN %s%s SERIAL",
 				get_option_value(ai_service->service_data->options, OPTION_STORE_NAME),
 				get_option_value(ai_service->service_data->options, OPTION_STORE_NAME),
 				PK_SUFFIX);
-		execute_query_spi(query);
+		execute_query_spi(query, false/*read only*/);
 
 		snprintf(query, SQL_QUERY_MAX_LENGTH, "ALTER TABLE %s ADD COLUMN %s vector(%d) ",
 				get_option_value(ai_service->service_data->options, OPTION_STORE_NAME),
 				EMBEDDINGS_COLUMN_NAME,
 				ADA_EMBEDDINGS_LIST_SIZE);
-		execute_query_spi(query);
-
-
+		execute_query_spi(query, false/*read only*/);
 	}
 	init_rest_transfer((AIService *)ai_service);
 	return RETURN_ZERO;
 }
 
 int
-execute_query_spi(const char *query)
+execute_query_spi(const char *query, bool read_only)
 {
 	int ret;
 	// unlimited
 	int row_limit = 0;
 	// ereport(INFO,(errmsg("Query: %s\n", query)));
 	SPI_connect();
-	ret = SPI_exec(query, row_limit);
+	ret = SPI_execute(query, read_only, row_limit);
     SPI_finish();
 	return ret;
 }
@@ -354,7 +370,8 @@ ada_rest_transfer(void *service)
 	if (ai_service->function_flags & ADA_FUNCTION_CREATE_VECTOR_STORE)
 	{
 		sprintf(query, "SELECT * FROM %s", get_option_value(ai_service->service_data->options, OPTION_STORE_NAME));
-		ereport(INFO, (errmsg("\nProcessing query \"%s\"\n", get_option_value(ai_service->service_data->options, OPTION_SQL_QUERY))));
+		//ereport(INFO, (errmsg("\nProcessing query \"%s\"\n", get_option_value(ai_service->service_data->options, OPTION_SQL_QUERY))));
+		ereport(INFO, (errmsg("Processing query")));
 		SPI_connect();
 		ret = SPI_exec(query, count);
 		// if rows fetched
@@ -416,7 +433,7 @@ ada_rest_transfer(void *service)
 						EMBEDDINGS_COLUMN_NAME, data,
 						get_option_value(ai_service->service_data->options, OPTION_STORE_NAME),
 						PK_SUFFIX, pk_col_value);
-					execute_query_spi(query);
+					execute_query_spi(query, false/*read only*/);
 
 					// make way for the next call
 					ai_service->rest_response->data_size = 0;

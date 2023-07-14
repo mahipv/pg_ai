@@ -5,7 +5,6 @@
 #include <utils/typcache.h>
 #include "ai_service.h"
 #include "rest_transfer.h"
-#include "json_options_help.h"
 #include "executor/spi.h"
 #include "pg_ai_utils.h"
 
@@ -37,8 +36,6 @@ Datum
 get_insight(PG_FUNCTION_ARGS)
 {
 	Name			service_name;
-	char			*param_file_path;
-	char		 	*request;
 	AIService		*ai_service;
 	int 			return_value;
 	MemoryContext 	func_context;
@@ -58,24 +55,25 @@ get_insight(PG_FUNCTION_ARGS)
 
 	/* get the call backs for the service */
 	service_name = PG_GETARG_NAME(0);
-	if (strcmp(NameStr(*service_name), SERVICE_CHAT_GPT) &&
-		strcmp(NameStr(*service_name), SERVICE_DALL_E2))
-	{
-		ereport(ERROR,
-				(errmsg("Unsupported service '%s'.\n", NameStr(*service_name))));
-	}
+	if (!strcmp(NameStr(*service_name), SERVICE_CHAT_GPT))
+		ai_service->function_flags |= CHAT_GPT_FUNCTION_GET_INSIGHT;
+
+	if (!strcmp(NameStr(*service_name), SERVICE_DALL_E2))
+		ai_service->function_flags |= DALLE2_GPT_FUNCTION_GET_INSIGHT;
+
+	if (!ai_service->function_flags)
+		ereport(ERROR, (errmsg("Unsupported service '%s'.\n", NameStr(*service_name))));
+
 	return_value = initialize_service(NameStr(*service_name),
 									  ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
-	/*
-	  initialize the data for the service this is the place
-	  to pass the user options to the service
-	*/
-	request = text_to_cstring(PG_GETARG_TEXT_PP(1));
-	param_file_path = NameStr(*(PG_GETARG_NAME(2)));
-	return_value = (ai_service->init_service_data)(request, ai_service, param_file_path);
+	return_value = (ai_service->set_and_validate_options)(ai_service, fcinfo);
+	if (return_value)
+		PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
+
+	return_value = (ai_service->init_service_data)(NULL, ai_service, NULL);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
 
@@ -108,10 +106,7 @@ get_insight_agg_transfn(PG_FUNCTION_ARGS)
 	MemoryContext 		old_context;
 	AggStateStruct 		*state_struct;
 	Name				service_name;
-
-	if (PG_ARGISNULL(1) || PG_ARGISNULL(2) || PG_ARGISNULL(3))
-		ereport(FATAL,
-				(errmsg("Incorrect parameters cannot proceed.\n")));
+	int					return_value;
 
 	if (!AggCheckCallContext(fcinfo, &agg_context))
 		ereport(ERROR,
@@ -136,24 +131,31 @@ get_insight_agg_transfn(PG_FUNCTION_ARGS)
 
 		/* initialize the service */
 		service_name = PG_ARGISNULL(1) ? NULL : PG_GETARG_NAME(1);
-		if (strcmp(NameStr(*service_name), SERVICE_CHAT_GPT) &&
-			strcmp(NameStr(*service_name), SERVICE_DALL_E2))
+		if (!strcmp(NameStr(*service_name), SERVICE_CHAT_GPT))
+			state_struct->ai_service->function_flags |= CHAT_GPT_FUNCTION_GET_INSIGHT_AGGREGATE;
+		if (!strcmp(NameStr(*service_name), SERVICE_DALL_E2))
+			state_struct->ai_service->function_flags |= DALLE2_GPT_FUNCTION_GET_INSIGHT_AGGREGATE;
+		if (!state_struct->ai_service->function_flags)
 		{
 			ereport(ERROR,
 				(errmsg("Unsupported service '%s'.\n", NameStr(*service_name))));
 		}
 		initialize_service(NameStr(*service_name),
 						   state_struct->ai_service);
-		state_struct->ai_service->is_aggregate = 0x1;
-		state_struct->param_file_path = NameStr(*(PG_GETARG_NAME(3)));
+
+		return_value = (state_struct->ai_service->set_and_validate_options)
+						(state_struct->ai_service, fcinfo);
+		if (return_value)
+			PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
+
 		MemoryContextSwitchTo(old_context);
 		fcinfo->flinfo->fn_extra = state_struct;
 	}
 
 	/* accumulate non NULL values */
-	if (!PG_ARGISNULL(2))
+	if (!PG_ARGISNULL(3))
 	{
-		strcat(state_struct->column_data, TextDatumGetCString(PG_GETARG_DATUM(2)));
+		strcat(state_struct->column_data, TextDatumGetCString(PG_GETARG_DATUM(3)));
 		strcat(state_struct->column_data, " ");
 		// ereport(INFO,(errmsg("%s\n",state_struct->column_data)));
 	}
@@ -193,15 +195,11 @@ get_insight_agg_finalfn(PG_FUNCTION_ARGS)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
 	old_context = MemoryContextSwitchTo(agg_context);
-	/*
-	  initialize the data for the service this is the place
-	  to pass the user options to the service
-	*/
+
 	return_value = (state_struct->ai_service->init_service_data)
-		(state_struct->column_data, state_struct->ai_service,
-		 state_struct->param_file_path);
+					(NULL, state_struct->ai_service, state_struct->column_data);
 	if (return_value)
-		PG_RETURN_CSTRING("Internal error: cannot make options");
+		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
 
 	// ereport(INFO,(errmsg("Final :%s\n",state_struct->column_data)));
 	/* call the transfer */
@@ -225,7 +223,6 @@ pg_ai_help(PG_FUNCTION_ARGS)
 	char		*display_string;
 	size_t		left_over;
 	size_t		running_length;
-
 	left_over = MAX_HELP_SIZE;
 	running_length = 0;
 	display_string = palloc0(MAX_HELP_SIZE);
@@ -246,7 +243,7 @@ pg_ai_help(PG_FUNCTION_ARGS)
 			PG_RETURN_TEXT_P(cstring_to_text("Internal error"));
 
 		/* add service name */
-		sprintf(display_string + running_length, "%c.Service:", (i+1+'0'));
+		sprintf(display_string + running_length, "\n\n%c. Service:", (i+1+'0'));
 		running_length = strlen(display_string);
 		sprintf(display_string + running_length, "%s ",
 				(ai_service->get_service_name)(ai_service));
@@ -272,33 +269,19 @@ pg_ai_help(PG_FUNCTION_ARGS)
 		running_length = strlen(display_string);
 
 		/* add the service specific parameters */
-		strcat(display_string, "\nParameters(JSON + Function):");
+		strcat(display_string, "\nParameters:\n");
 		running_length = strlen(display_string);
 		get_service_options(ai_service, display_string+running_length,
 							left_over-running_length);
 		running_length = strlen(display_string);
 
 		/* empty lines before the next service */
-		strcat(display_string, "\n\n\n");
+		strcat(display_string, "\n");
 		running_length = strlen(display_string);
 	}
-	strcat(display_string, "For json options file template - SELECT pg_ai_help_options();");
 	PG_RETURN_TEXT_P(cstring_to_text(display_string));
 }
 
-/*
- * The implementation of SQL FUNCTION pg_ai_help_options. This decribes the
- * format of the json options file.Refer to the .sql file for details on the
- * parameters and return values.
- *
- */
-PG_FUNCTION_INFO_V1(pg_ai_help_options);
-Datum
-pg_ai_help_options(PG_FUNCTION_ARGS)
-{
-	/* TODO construct the format dynamically */
-	PG_RETURN_TEXT_P(cstring_to_text(JSON_OPTIONS_FILE_FORMAT));
-}
 
 /*
  * The implementation of SQL FUNCTION create_vector_store. Refer to the .sql file for
@@ -308,50 +291,45 @@ PG_FUNCTION_INFO_V1(create_vector_store);
 Datum
 create_vector_store(PG_FUNCTION_ARGS)
 {
-	Name			service_name;
-	char			*param_file_path;
-	char		 	*store_name;
-	AIService		*ai_service;
-	int 			return_value;
-	MemoryContext 	func_context;
-	MemoryContext 	old_context;
+	AIService			*ai_service;
+	MemoryContext 		func_context;
+	MemoryContext 		old_context;
+	int 				return_value;
+	Name				service_name;
 
 	func_context = AllocSetContextCreate(CurrentMemoryContext,
 										 "ai functions context",
 										 ALLOCSET_DEFAULT_SIZES);
 	old_context = MemoryContextSwitchTo(func_context);
 	ai_service = palloc0(sizeof(AIService));
+	MemoryContextSwitchTo(old_context);
 	/* clear all pointers */
 	initialize_self(ai_service);
 
-	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
-		ereport(ERROR,
-				(errmsg("Incorrect parameters cannot proceed.\n")));
-
 	ai_service->function_flags |= ADA_FUNCTION_CREATE_VECTOR_STORE;
-
-	service_name = PG_GETARG_NAME(0);
+	service_name = PG_ARGISNULL(0) ? NULL : PG_GETARG_NAME(0);
 	if (strcmp(SERVICE_ADA, NameStr(*service_name)))
-		ereport(ERROR,
-				(errmsg("Unsupported service '%s'.\n", NameStr(*service_name))));
+		ereport(ERROR, (errmsg("Unsupported AI service: '%s'.\n", NameStr(*service_name))));
+
+	old_context = MemoryContextSwitchTo(func_context);
 	/* get the call backs for the service */
-	return_value = initialize_service(NameStr(*service_name),
-									  ai_service);
+	return_value = initialize_service(NameStr(*service_name), ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
-	param_file_path = NameStr(*(PG_GETARG_NAME(1)));
-	store_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
-	set_option_value(ai_service->service_data->options, OPTION_STORE_NAME, store_name);
-	return_value = (ai_service->init_service_data)(NULL, ai_service, param_file_path);
+	return_value = (ai_service->set_and_validate_options)(ai_service, fcinfo);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
-	/* call the transfer */
+		PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
+
+	// make call to ada service to create the vectore store
+	return_value = (ai_service->init_service_data)(NULL, ai_service, NULL);
+	if (return_value)
+		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot initialize data."));
+	/* call the transfer TODO return value*/
 	(ai_service->rest_transfer)(ai_service);
 
 	MemoryContextSwitchTo(old_context);
 	PG_RETURN_TEXT_P(cstring_to_text((char*)(ai_service->rest_response->data)));
-
 }
 
 /*
@@ -380,15 +358,12 @@ query_vector_store(PG_FUNCTION_ARGS)
     int                 col_count;
 	HeapTuple           tuple;
 	StringInfo          header;
-    Name				service_name;
-	char				*param_file_path;
-	char		 		*store_name;
-	char 				*nl_prompt;
-	AIService			*ai_service;
+    AIService			*ai_service;
 	int                 return_value;
 	char             	pk_col[COLUMN_NAME_LEN];
 	char 				*hide_cols[] = {EMBEDDINGS_COLUMN_NAME,EMBEDDINGS_COSINE_SIMILARITY, pk_col};
     int 				hide_col_count = sizeof(hide_cols)/sizeof(hide_cols[0]);
+	Name				service_name;
 
 	if (SRF_IS_FIRSTCALL())
 	{
@@ -402,30 +377,23 @@ query_vector_store(PG_FUNCTION_ARGS)
 	    /* clear all pointers */
 	    initialize_self(ai_service);
 
-    	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2) || PG_ARGISNULL(3))
-	    	ereport(FATAL,
-				(errmsg("Incorrect parameters cannot proceed.\n")));
-	    service_name = PG_GETARG_NAME(0);
-	    if (strcmp(SERVICE_ADA, NameStr(*service_name)))
+		/* get the service name and initialize */
+		service_name = PG_ARGISNULL(0) ? NULL : PG_GETARG_NAME(0);
+	   	if (strcmp(SERVICE_ADA, NameStr(*service_name)))
 		    ereport(ERROR,
 				(errmsg("Unsupported service '%s'.\n", NameStr(*service_name))));
-
 	    ai_service->function_flags |= ADA_FUNCTION_QUERY_VECTOR_STORE;
-	    /* get the call backs for the service */
 	    return_value = initialize_service(NameStr(*service_name), ai_service);
 	    if (return_value)
 		    PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
-	    /*
-	    initialize the data for the service this is the place
-	    to pass the user options to the service
-	    */
-	    param_file_path = NameStr(*(PG_GETARG_NAME(1)));
-	    store_name = text_to_cstring(PG_GETARG_TEXT_PP(2));
-	    nl_prompt = text_to_cstring(PG_GETARG_TEXT_PP(3));
 
-	    set_option_value(ai_service->service_data->options, OPTION_STORE_NAME, store_name);
-	    set_option_value(ai_service->service_data->options, OPTION_NL_QUERY, nl_prompt);
-	    return_value = (ai_service->init_service_data)(NULL, ai_service, param_file_path);
+		/* pass on the arguments to the service to validate */
+		return_value = (ai_service->set_and_validate_options)(ai_service, fcinfo);
+		if (return_value)
+			PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
+
+		/* initialize for the data transfer */
+	    return_value = (ai_service->init_service_data)(NULL, ai_service, NULL);
 	    if (return_value)
 		    PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
 		(ai_service->rest_transfer)(ai_service);
@@ -473,7 +441,7 @@ query_vector_store(PG_FUNCTION_ARGS)
 		col_count = funcctx->tuple_desc->natts;
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 		header = makeStringInfo();
-		appendStringInfo(header, "Meta Data (");
+		appendStringInfo(header, "\n Query store meta data (");
 		for (i=0; i<col_count; i++)
 		{
 			Form_pg_attribute attr = TupleDescAttr(funcctx->tuple_desc, i);
@@ -506,4 +474,3 @@ query_vector_store(PG_FUNCTION_ARGS)
 	/* unreachable */
     PG_RETURN_VOID();
 }
-

@@ -16,7 +16,6 @@ initialize_self(AIService *ai_service)
 	ai_service->service_data = NULL;
 	ai_service->rest_request = NULL;
 	ai_service->rest_response = NULL;
-	ai_service->is_aggregate = 0;
 	ai_service->function_flags = 0;
 }
 
@@ -33,6 +32,7 @@ initialize_chat_gpt(AIService *ai_service)
 	/* PG <-> AI functions */
 	ai_service->get_service_help=chat_gpt_help;
 	ai_service->init_service_options = chat_gpt_init_service_options;
+	ai_service->set_and_validate_options = chat_gpt_set_and_validate_options;
 	ai_service->init_service_data = chat_gpt_init_service_data;
 	ai_service->cleanup_service_data = chat_gpt_cleanup_service_data;
 
@@ -58,6 +58,7 @@ initialize_dalle2(AIService *ai_service)
 	/* PG <-> AI functions */
 	ai_service->get_service_help = dalle_e2_help;
 	ai_service->init_service_options = dalle_e2_init_service_options;
+	ai_service->set_and_validate_options = dalle_e2_set_and_validate_options;
 	ai_service->init_service_data = dalle_e2_init_service_data;
 	ai_service->cleanup_service_data = dalle_e2_cleanup_service_data;
 
@@ -83,6 +84,7 @@ initialize_ada(AIService *ai_service)
 	/* PG <-> AI functions */
 	ai_service->get_service_help=ada_help;
 	ai_service->init_service_options = ada_init_service_options;
+	ai_service->set_and_validate_options = ada_set_and_validate_options;
 	ai_service->init_service_data = ada_init_service_data;
 	ai_service->cleanup_service_data = ada_cleanup_service_data;
 

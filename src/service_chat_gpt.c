@@ -21,10 +21,10 @@ define_options(AIService *ai_service)
 	ServiceData  *service_data = ai_service->service_data;
 	define_new_option(&(service_data->options), OPTION_PROVIDER_KEY,
 					  OPTION_PROVIDER_KEY_DESC, 1/*provider*/, 1/*required*/);
+	define_new_option(&(service_data->options), OPTION_INSIGHT_COLUMN,
+					  OPTION_INSIGHT_COLUMN_DESC, 1/*provider*/, 1/*required*/);
 	define_new_option(&(service_data->options), OPTION_SERVICE_PROMPT,
-					  OPTION_SERVICE_PROMPT_DESC, 0/*provider*/,  0/*required*/);
-	define_new_option(&(service_data->options), OPTION_SERVICE_PROMPT_AGG,
-					  OPTION_SERVICE_PROMPT_AGG_DESC, 0/*provider*/, 0/*required*/);
+						OPTION_SERVICE_PROMPT_DESC, 0/*provider*/,  1/*required*/);
 }
 
 /*
@@ -65,46 +65,57 @@ chat_gpt_help(char *help_text, const size_t max_len)
 		strncpy(help_text, CHAT_GPT_HELP, max_len);
 }
 
-/*
- * Read the json options file and set the values in the options list for
- * the chatgpt service
- *
- * @param[in]		file_path	the help text is reurned in this array
- * @param[in/out]	ai_service	pointer to the AIService which has the
- *								defined option list
- * @return			zero on success, non-zero otherwise
- *
- */
-static int
-load_and_validate_options(const char *file_path, AIService *ai_service)
+int
+chat_gpt_set_and_validate_options(void *service, void *function_options)
 {
-	ServiceOption 	*options = ai_service->service_data->options;
-	int 			ret_val = RETURN_ZERO;
+	PG_FUNCTION_ARGS = (FunctionCallInfo)function_options;
+	AIService			*ai_service = (AIService *)service;
+	ServiceOption 		*options;
+	int 				arg_offset;
 
+	arg_offset = (ai_service->function_flags & CHAT_GPT_FUNCTION_GET_INSIGHT_AGGREGATE)?1:0;
+
+	if (!PG_ARGISNULL(1+arg_offset))
+		set_option_value(ai_service->service_data->options, OPTION_PROVIDER_KEY,
+						 text_to_cstring(PG_GETARG_TEXT_PP(1+arg_offset)));
+
+	if (!PG_ARGISNULL(2+arg_offset))
+		set_option_value(ai_service->service_data->options, OPTION_INSIGHT_COLUMN,
+						 text_to_cstring(PG_GETARG_TEXT_PP(2+arg_offset)));
+	/* aggregate functions get an extra argument at position 0*/
+
+	if (!PG_ARGISNULL(3+arg_offset))
+		set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT,
+					text_to_cstring(PG_GETARG_TEXT_PP(3+arg_offset)));
+	else
+	{
+		/* if not passed, set the default prompts */
+		if (ai_service->function_flags & CHAT_GPT_FUNCTION_GET_INSIGHT)
+			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT,
+							CHAT_GPT_SUMMARY_PROMPT);
+
+		if (ai_service->function_flags & CHAT_GPT_FUNCTION_GET_INSIGHT_AGGREGATE)
+			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT_AGG,
+							 	CHAT_GPT_AGG_PROMPT);
+	}
+
+	options = ai_service->service_data->options;
 	while (options)
 	{
-		ret_val = get_option_from_file(file_path,
-									   (ai_service->get_provider_name)(ai_service),
-									   (ai_service->get_service_name)(ai_service),
-									   options->provider, options->name,
-									   options->value, OPTION_VALUE_LEN);
-
-		/* unable to read the option value */
-		if (ret_val)
+		// paramters passed to function take presidence
+		if (options->is_set)
 		{
+			options = options->next;
+			continue;
+		}
+		else
+		{
+
 			/* required and not set */
 			if (options->required)
 			{
-				ereport(INFO,(errmsg("Required value for %s missing.\n",options->name)));
+				ereport(INFO,(errmsg("Required value for option \"%s\" missing.\n",options->name)));
 				return RETURN_ERROR;
-			}
-			else
-			{
-				if (!strcmp(options->name, OPTION_SERVICE_PROMPT))
-					strcpy(options->value, CHAT_GPT_AGG_PROMPT);
-
-				if (!strcmp(options->name, OPTION_SERVICE_PROMPT_AGG))
-					strcpy(options->value, CHAT_GPT_SUMMARY_PROMPT);
 			}
 		}
 		options = options->next;
@@ -125,14 +136,17 @@ load_and_validate_options(const char *file_path, AIService *ai_service)
  *
  */
 int
-chat_gpt_init_service_data(void *options, void *service, void *file_path)
+chat_gpt_init_service_data(void *options, void *service, void *data)
 {
 	ServiceData		*service_data;
 	char 			*column_data;
 	AIService		*ai_service = (AIService *)service;
 
 	service_data = ai_service->service_data;
-	column_data = options;
+	if (ai_service->function_flags & CHAT_GPT_FUNCTION_GET_INSIGHT)
+		column_data = get_option_value(ai_service->service_data->options, OPTION_INSIGHT_COLUMN);
+	else
+		column_data = (char*)data;
 
 	service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
 	service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
@@ -141,23 +155,15 @@ chat_gpt_init_service_data(void *options, void *service, void *file_path)
 	/* initialize data partly here */
 	strcpy(service_data->url, CHAT_GPT_API_URL);
 
-	/* initialize read the rest of the data from file */
-	if (load_and_validate_options((char*)file_path, ai_service))
-		return RETURN_ERROR;
-
 	//ereport(INFO,(errmsg("%s\n",service_data->key)));
-	if (ai_service->is_aggregate)
-		strcpy(service_data->request,
-			   get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT_AGG));
-	else
-		strcpy(service_data->request,
-			   get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT));
+	strcpy(service_data->request,
+			get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT));
 
 	strcat(service_data->request, " \"");
 	strcat(service_data->request, column_data);
 	strcat(service_data->request, "\"");
 
-	//print_service_options(service_data->options, 1 /*print values*/);
+	// print_service_options(service_data->options, 1 /*print values*/);
 	init_rest_transfer((AIService *)ai_service);
 	return RETURN_ZERO;
 }

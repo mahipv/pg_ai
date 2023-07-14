@@ -46,6 +46,16 @@
 #define BIG_DATA_FAIL_MSG "Data to big, model only supports %lu words."
 
 #define COLUMN_NAME_LEN 255
+
+/* every service function has a unique constant */
+#define CHAT_GPT_FUNCTION_GET_INSIGHT              0x00000001
+#define CHAT_GPT_FUNCTION_GET_INSIGHT_AGGREGATE    0x00000002
+#define DALLE2_GPT_FUNCTION_GET_INSIGHT            0x00000004
+#define DALLE2_GPT_FUNCTION_GET_INSIGHT_AGGREGATE  0x00000008
+#define ADA_FUNCTION_CREATE_VECTOR_STORE           0x00000010
+#define ADA_FUNCTION_QUERY_VECTOR_STORE            0x00000020
+
+
 /* -----------------chatgpt---------- */
 #define CHAT_GPT_API_URL "https://api.openai.com/v1/completions"
 #define CHAT_GPT_SUMMARY_PROMPT "Get summary of the following in 1 lines."
@@ -63,9 +73,15 @@
 #define RESPONSE_JSON_CHOICE "choices"
 #define RESPONSE_JSON_KEY "text"
 
-#define CHAT_GPT_HELP "Functions:\n"\
-	"get_insight(\"chatgpt\", <column name>, '<json options file>') \n" \
-	"get_insight_agg(\"chatgpt\", <column name>, '<json options file>') \n"
+#define CHAT_GPT_HELP "\nFunctions:\n"\
+"(i) get_insight(service => 'chatgpt',\n\
+                 key => '<OpenAI auth key>',\n\
+                 textcolumn => <column name>,\n\
+                 prompt => '<prompt> eg: Get summary of the following in 1 line')  \n\n" \
+"(ii) get_insight_agg(\"chatgpt\",\n\
+                      '<OpenAI auth key>',\n\
+                      <column name>,\n\
+                      '<prompt> eg: Choose a topic for the words here:') \n"
 /* -----------------chatgpt---------- */
 
 /* -----------------dalle-2---------- */
@@ -77,22 +93,35 @@
 #define RESPONSE_JSON_DATA "data"
 #define RESPONSE_JSON_URL "url"
 
-#define DALLE_E2_HELP "Functions:\n"\
-	"get_insight(\"dalle-2\", <column name>, '<json options file>') \n"\
-	"get_insight_agg(\"dalle-2\", <column name>, '<json options file>') \n"
+#define DALLE_E2_HELP "\nFunctions:\n"\
+"(i)  get_insight(service => 'dall-e2',\n\
+                  key => '<OpenAI auth key>',\n\
+                  textcolumn => <column name>,\n\
+                  prompt => '<prompt> eg:Make a picture of the following:')\n\n" \
+"(ii) get_insight_agg(\"dall-e2\",\n\
+                      '<OpenAI auth key>',\n\
+                      <column name>,\n\
+                      '<prompt> eg: Make a picture with the following:') \n"
 /* -----------------dalle-2---------- */
 
 
 /* -----------------ada---------- */
 #define ADA_API_URL "https://api.openai.com/v1/embeddings"
-#define ADA_DESCRIPTION "Open AI's embeddings model "
+#define ADA_DESCRIPTION "Open AI's embeddings model(vectors)"
 
-#define ADA_HELP "Functions:\n"\
-	"create_vector_store(\"ada\", '<json options file>', '<new store_name>') \n" \
-	"query_vector_store(\"ada\", '<json options file>', '<store_name>', '<natural language prompt>') \n"
+#define ADA_HELP "\nFunctions:\n"\
+"(ii) create_vector_store(service => 'ada', \n\
+                          key => '<OpenAI auth key>', \n\
+                          store => '<new store name>', \n\
+                          query => 'SQL query from which the store is made.', \n\
+                          prompt => '<natural language prompt>' )\n\n" \
+"(ii) query_vector_store(service => 'ada', \n\
+                         key => '<OpenAI auth key>', \n\
+                         store => '<new store name>', \n\
+                         prompt => '<natural language prompt>', \n\
+                         count => <count of records to fetch>, \n\
+                         similarity_algorithm => '<vector matching algorithm>(default:cosine_similarity)')\n"
 
-#define ADA_FUNCTION_CREATE_VECTOR_STORE 0x00000001
-#define ADA_FUNCTION_QUERY_VECTOR_STORE  0x00000002
 #define SQL_QUERY_MAX_LENGTH 256*1024
 // seems const - TODO
 #define ADA_EMBEDDINGS_LIST_SIZE 1536
@@ -102,10 +131,12 @@
 #define EMBEDDINGS_COSINE_SIMILARITY "cosine_similarity"
 
 #define PG_EXTENSION_PG_VECTOR "vector"
+
+#define MIN_COUNT_RECORDS 1
+#define MAX_COUNT_RECORDS 10
 /* -----------------ada---------- */
 
-/* -----------------8<--json options---------- */
-/* Add new options that need to be read from the json file here */
+/* -----------------8<--Function Arguments ---------- */
 #define OPTION_PROVIDERS "providers"
 #define OPTION_PROVIDERS_DESC "The provider."
 
@@ -121,6 +152,9 @@
 #define OPTION_SERVICE_NAME "name"
 #define OPTION_SERVICE_NAME_DESC "The name of the AI service."
 
+#define OPTION_INSIGHT_COLUMN "textcolumn"
+#define OPTION_INSIGHT_COLUMN_DESC "The column to be used for insights."
+
 #define OPTION_SERVICE_PROMPT "prompt"
 #define OPTION_SERVICE_PROMPT_DESC "The string to be used as input to the LLM."
 
@@ -128,21 +162,19 @@
 #define OPTION_SERVICE_PROMPT_AGG_DESC "The prompt used for the get_insight_agg() function."
 
 #define OPTION_STORE_NAME "store_name"
-#define OPTION_STORE_NAME_DESC "Table name having the materialised data.(function parameter)"
+#define OPTION_STORE_NAME_DESC "Table name having the materialised data."
 
 #define OPTION_SQL_QUERY "query"
 #define OPTION_SQL_QUERY_DESC "The SQL query(syntactically correct) to materialize."
 
 #define OPTION_NL_QUERY "prompt"
-#define OPTION_NL_QUERY_DESC "Prompt to search for matching data in the store.(function parameter)"
+#define OPTION_NL_QUERY_DESC "Prompt(natural language) to fetch matching data in the store."
 
 #define OPTION_RECORD_COUNT "limit"
-#define OPTION_RECORD_COUNT_DESC "No of records to display."
+#define OPTION_RECORD_COUNT_DESC "No of records to display.(default: 2)"
 
 #define OPTION_MATCHING_ALGORITHM "algorithm"
-#define OPTION_MATCHING_ALGORITHM_DESC "Vector matching algorithm."
-
-
-/* ---------------------json options-->8------ */
+#define OPTION_MATCHING_ALGORITHM_DESC "Vector matching algorithm.(default/supported: cosine_similarity)"
+/* ---------------------Function Arguments -->8------ */
 
 #endif /* _AI_CONFIG_H_*/

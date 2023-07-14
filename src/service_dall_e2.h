@@ -18,5 +18,5 @@ void 	dalle_e2_set_service_buffers(RestRequest *rest_request, RestResponse *rest
 void 	dalle_e2_post_header_maker(char *buffer, const size_t maxlen, const char *data,
 								   const size_t len);
 int 	dalle_e2_add_service_headers(CURL *curl, struct curl_slist **headers, void *service);
-
+int     dalle_e2_set_and_validate_options(void *service, void *function_options);
 #endif /* _SERVICE_DALL_E2_H_ */
