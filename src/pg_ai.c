@@ -3,93 +3,103 @@
 #include <miscadmin.h>
 #include <utils/builtins.h>
 #include <utils/typcache.h>
-#include "ai_service.h"
-#include "rest_transfer.h"
 #include "executor/spi.h"
-#include "pg_ai_utils.h"
+#include "rest/rest_transfer.h"
+#include "ai_service.h"
+#include "utils_pg_ai.h"
+#include "guc/pg_ai_guc.h"
 
-/*
-#if PG_VERSION_NUM < 140000
+#define PG_AI_MIN_PG_VERSION 160000
+#if PG_VERSION_NUM < PG_AI_MIN_PG_VERSION
 #error "Unsupported PostgreSQL version."
 #endif
-*/
 
 #ifdef PG_MODULE_MAGIC
 PG_MODULE_MAGIC;
 #endif
 
-/* supported ai services */
-const char *ai_services[] =
+void
+_PG_init(void)
 {
-	SERVICE_ADA,
-	SERVICE_CHAT_GPT,
-	SERVICE_DALL_E2,
-	NULL
-};
+	define_pg_ai_guc_variables();
+}
+
+void
+_PG_fini(void)
+{
+
+}
 
 /*
  * The implementation of SQL FUNCTION get_insight. Refer to the .sql file for
  * details on the parameters and return values.
  */
-PG_FUNCTION_INFO_V1(get_insight);
+PG_FUNCTION_INFO_V1(pg_ai_insight);
 Datum
-get_insight(PG_FUNCTION_ARGS)
+pg_ai_insight(PG_FUNCTION_ARGS)
 {
-	Name			service_name;
-	AIService		*ai_service;
-	int 			return_value;
+	NameData		service_name;
+	NameData		model_name;
+	AIService  		*ai_service;
+	int				return_value;
 	MemoryContext 	func_context;
-	MemoryContext 	old_context;
+	MemoryContext	old_context;
+	text			*return_text;
+
+	/* check for the column name whose value is to be interpreted */
+	if (PG_ARGISNULL(0))
+		ereport(ERROR,
+				(errmsg("Incorrect parameters: please specify the column name\n")));
 
 	func_context = AllocSetContextCreate(CurrentMemoryContext,
 										 "ai functions context",
 										 ALLOCSET_DEFAULT_SIZES);
 	old_context = MemoryContextSwitchTo(func_context);
 	ai_service = palloc0(sizeof(AIService));
-	/* clear all pointers */
-	initialize_self(ai_service);
+	ai_service->memory_context = func_context;
+	MemoryContextSwitchTo(old_context);
 
-	if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
-		ereport(FATAL,
-				(errmsg("Incorrect parameters cannot proceed.\n")));
+	/* default service an model */
+	/* TODO: get the service and model from the guc */
+	strcpy(service_name.data, SERVICE_OPENAI);
+	strcpy(model_name.data, MODEL_OPENAI_GPT);
 
-	/* get the call backs for the service */
-	service_name = PG_GETARG_NAME(0);
-	if (!strcmp(NameStr(*service_name), SERVICE_CHAT_GPT))
-		ai_service->function_flags |= CHAT_GPT_FUNCTION_GET_INSIGHT;
-
-	if (!strcmp(NameStr(*service_name), SERVICE_DALL_E2))
-		ai_service->function_flags |= DALLE2_GPT_FUNCTION_GET_INSIGHT;
-
-	if (!ai_service->function_flags)
-		ereport(ERROR, (errmsg("Unsupported service '%s'.\n", NameStr(*service_name))));
-
-	return_value = initialize_service(NameStr(*service_name),
-									  ai_service);
+	ai_service->function_flags |= FUNCTION_GET_INSIGHT;
+	return_value = initialize_service(NameStr(service_name), NameStr(model_name), ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
-	return_value = (ai_service->set_and_validate_options)(ai_service, fcinfo);
+	/* set options based on parameters and read from guc */
+	return_value = (ai_service->set_and_validate_options) (ai_service, fcinfo);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
+		ereport(ERROR, (errmsg("Error: Invalid Options\n")));
 
-	return_value = (ai_service->init_service_data)(NULL, ai_service, NULL);
+	/* initialize the service data to be sent to the AI service	*/
+	return_value = (ai_service->init_service_data) (NULL, ai_service, NULL);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
 
-	/* call the transfer */
-	(ai_service->rest_transfer)(ai_service);
+	/* print_service_options(ai_service->service_data->options, 0); */
+	/* print_service_options(ai_service->service_data->options, 1); */
 
-	MemoryContextSwitchTo(old_context);
-	PG_RETURN_TEXT_P(cstring_to_text((char*)(ai_service->rest_response->data)));
+	/* call the transfer */
+	(ai_service->rest_transfer) (ai_service);
+
+	/* copy the return text so that the memory context can be freed */
+	return_text = cstring_to_text((char *) (ai_service->rest_response->data));
+
+	if (ai_service->memory_context)
+		MemoryContextDelete(ai_service->memory_context);
+
+	PG_RETURN_TEXT_P(return_text);
 }
 
 /* structure to save the context for the aggregate function */
 typedef struct AggStateStruct
 {
-	AIService 	*ai_service;
-	char		column_data[16*1024];
-	char		*param_file_path;
+	AIService  *ai_service;
+	char		column_data[16 * 1024];
+	char	   *param_file_path;
 }AggStateStruct;
 
 /*
@@ -98,15 +108,16 @@ typedef struct AggStateStruct
  * details on the parameters and return value.
  *
  */
-PG_FUNCTION_INFO_V1(get_insight_agg_transfn);
+PG_FUNCTION_INFO_V1(pg_ai_insight_agg_transfn);
 Datum
-get_insight_agg_transfn(PG_FUNCTION_ARGS)
+pg_ai_insight_agg_transfn(PG_FUNCTION_ARGS)
 {
-	MemoryContext 		agg_context;
-	MemoryContext 		old_context;
-	AggStateStruct 		*state_struct;
-	Name				service_name;
-	int					return_value;
+	MemoryContext	agg_context;
+	MemoryContext	old_context;
+	AggStateStruct *state_struct;
+	NameData		service_name;
+	NameData		model_name;
+	int				return_value;
 
 	if (!AggCheckCallContext(fcinfo, &agg_context))
 		ereport(ERROR,
@@ -122,29 +133,22 @@ get_insight_agg_transfn(PG_FUNCTION_ARGS)
 	{
 		/* allocate and initialize the query state */
 		old_context = MemoryContextSwitchTo(agg_context);
-		state_struct = (AggStateStruct *)palloc0(sizeof(AggStateStruct));
-		*state_struct->column_data='\0';
-		state_struct->ai_service = (AIService *)palloc0(sizeof(AIService));
+		state_struct = (AggStateStruct *) palloc0(sizeof(AggStateStruct));
+		*state_struct->column_data = '\0';
+		state_struct->ai_service = (AIService *) palloc0(sizeof(AIService));
 
-		/* clear all pointers */
-		initialize_self(state_struct->ai_service);
+		/* default service an model */
+		/* TODO: get the service and model from the guc */
+		strcpy(service_name.data, SERVICE_OPENAI);
+		strcpy(model_name.data, MODEL_OPENAI_GPT);
 
-		/* initialize the service */
-		service_name = PG_ARGISNULL(1) ? NULL : PG_GETARG_NAME(1);
-		if (!strcmp(NameStr(*service_name), SERVICE_CHAT_GPT))
-			state_struct->ai_service->function_flags |= CHAT_GPT_FUNCTION_GET_INSIGHT_AGGREGATE;
-		if (!strcmp(NameStr(*service_name), SERVICE_DALL_E2))
-			state_struct->ai_service->function_flags |= DALLE2_GPT_FUNCTION_GET_INSIGHT_AGGREGATE;
-		if (!state_struct->ai_service->function_flags)
-		{
-			ereport(ERROR,
-				(errmsg("Unsupported service '%s'.\n", NameStr(*service_name))));
-		}
-		initialize_service(NameStr(*service_name),
-						   state_struct->ai_service);
+		state_struct->ai_service->function_flags |= FUNCTION_GET_INSIGHT_AGGREGATE;
+		return_value = initialize_service(NameStr(service_name), NameStr(model_name), state_struct->ai_service);
+		if (return_value)
+			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
 		return_value = (state_struct->ai_service->set_and_validate_options)
-						(state_struct->ai_service, fcinfo);
+			(state_struct->ai_service, fcinfo);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
 
@@ -153,11 +157,11 @@ get_insight_agg_transfn(PG_FUNCTION_ARGS)
 	}
 
 	/* accumulate non NULL values */
-	if (!PG_ARGISNULL(3))
+	if (!PG_ARGISNULL(1))
 	{
-		strcat(state_struct->column_data, TextDatumGetCString(PG_GETARG_DATUM(3)));
+		strcat(state_struct->column_data, TextDatumGetCString(PG_GETARG_DATUM(1)));
 		strcat(state_struct->column_data, " ");
-		// ereport(INFO,(errmsg("%s\n",state_struct->column_data)));
+		/* ereport(INFO,(errmsg("%s\n",state_struct->column_data))); */
 	}
 
 	PG_RETURN_POINTER(state_struct);
@@ -169,21 +173,21 @@ get_insight_agg_transfn(PG_FUNCTION_ARGS)
  * the .sql file for details on the parameters and return value.
  *
  */
-PG_FUNCTION_INFO_V1(get_insight_agg_finalfn);
+PG_FUNCTION_INFO_V1(pg_ai_insight_agg_finalfn);
 Datum
-get_insight_agg_finalfn(PG_FUNCTION_ARGS)
+pg_ai_insight_agg_finalfn(PG_FUNCTION_ARGS)
 {
-	MemoryContext 		agg_context;
-	MemoryContext 		old_context;
-	AggStateStruct 		*state_struct;
-	int					return_value;
+	MemoryContext agg_context;
+	MemoryContext old_context;
+	AggStateStruct *state_struct;
+	int			return_value;
 
 	if (!AggCheckCallContext(fcinfo, &agg_context))
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("called in non-aggregate context")));
 
-	state_struct = (AggStateStruct *)PG_GETARG_POINTER(0);
+	state_struct = (AggStateStruct *) PG_GETARG_POINTER(0);
 	if (state_struct == NULL)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal Error"));
 
@@ -197,89 +201,16 @@ get_insight_agg_finalfn(PG_FUNCTION_ARGS)
 	old_context = MemoryContextSwitchTo(agg_context);
 
 	return_value = (state_struct->ai_service->init_service_data)
-					(NULL, state_struct->ai_service, state_struct->column_data);
+		(NULL, state_struct->ai_service, state_struct->column_data);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
 
-	// ereport(INFO,(errmsg("Final :%s\n",state_struct->column_data)));
+	/* ereport(INFO,(errmsg("Final :%s\n",state_struct->column_data))); */
 	/* call the transfer */
-	(state_struct->ai_service->rest_transfer)(state_struct->ai_service);
+	(state_struct->ai_service->rest_transfer) (state_struct->ai_service);
 
 	MemoryContextSwitchTo(old_context);
-	PG_RETURN_TEXT_P(cstring_to_text((char*)(state_struct->ai_service->rest_response->data)));
-}
-
-/*
- * The implementation of SQL FUNCTION pg_ai_help. Refer to the .sql file for
- * details on the parameters and return values.
- *
- */
-PG_FUNCTION_INFO_V1(pg_ai_help);
-Datum
-pg_ai_help(PG_FUNCTION_ARGS)
-{
-	AIService	*ai_service;
-	int			return_value;
-	char		*display_string;
-	size_t		left_over;
-	size_t		running_length;
-	left_over = MAX_HELP_SIZE;
-	running_length = 0;
-	display_string = palloc0(MAX_HELP_SIZE);
-
-	ai_service = palloc(sizeof(AIService));
-	/* TODO handle strings and formatting and strlen efficiently */
-	for(int i=0; ai_services[i] != NULL; i++)
-	{
-		/* clear all pointers */
-		initialize_self(ai_service);
-
-		/* set all functions to the options defined*/
-		ai_service->function_flags |= ~0;
-
-		/* initialize the service */
-		return_value = initialize_service(ai_services[i], ai_service);
-		if (return_value)
-			PG_RETURN_TEXT_P(cstring_to_text("Internal error"));
-
-		/* add service name */
-		sprintf(display_string + running_length, "\n\n%c. Service:", (i+1+'0'));
-		running_length = strlen(display_string);
-		sprintf(display_string + running_length, "%s ",
-				(ai_service->get_service_name)(ai_service));
-		running_length = strlen(display_string);
-
-		/* add provider name */
-		sprintf(display_string + running_length, "  Provider:");
-		running_length = strlen(display_string);
-		sprintf(display_string + running_length, "%s ",
-				(ai_service->get_provider_name)(ai_service));
-		running_length = strlen(display_string);
-
-		/* add service description */
-		strcat(display_string + running_length, "  Info: ");
-		running_length = strlen(display_string);
-		sprintf(display_string + running_length, "%s\n",
-				(ai_service->get_service_description)(ai_service));
-		running_length = strlen(display_string);
-
-		/* get help text from respective service */
-		(ai_service->get_service_help)(display_string+running_length,
-											  left_over-running_length);
-		running_length = strlen(display_string);
-
-		/* add the service specific parameters */
-		strcat(display_string, "\nParameters:\n");
-		running_length = strlen(display_string);
-		get_service_options(ai_service, display_string+running_length,
-							left_over-running_length);
-		running_length = strlen(display_string);
-
-		/* empty lines before the next service */
-		strcat(display_string, "\n");
-		running_length = strlen(display_string);
-	}
-	PG_RETURN_TEXT_P(cstring_to_text(display_string));
+	PG_RETURN_TEXT_P(cstring_to_text((char *) (state_struct->ai_service->rest_response->data)));
 }
 
 
@@ -287,49 +218,50 @@ pg_ai_help(PG_FUNCTION_ARGS)
  * The implementation of SQL FUNCTION create_vector_store. Refer to the .sql file for
  * details on the parameters and return values.
  */
-PG_FUNCTION_INFO_V1(create_vector_store);
+PG_FUNCTION_INFO_V1(pg_ai_create_vector_store);
 Datum
-create_vector_store(PG_FUNCTION_ARGS)
+pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 {
-	AIService			*ai_service;
-	MemoryContext 		func_context;
-	MemoryContext 		old_context;
-	int 				return_value;
-	Name				service_name;
+	AIService		*ai_service;
+	MemoryContext	func_context;
+	MemoryContext	old_context;
+	int				return_value;
+	NameData		service_name;
+	NameData		model_name;
 
 	func_context = AllocSetContextCreate(CurrentMemoryContext,
 										 "ai functions context",
 										 ALLOCSET_DEFAULT_SIZES);
 	old_context = MemoryContextSwitchTo(func_context);
 	ai_service = palloc0(sizeof(AIService));
-	MemoryContextSwitchTo(old_context);
-	/* clear all pointers */
-	initialize_self(ai_service);
+	ai_service->memory_context = func_context;
 
-	ai_service->function_flags |= ADA_FUNCTION_CREATE_VECTOR_STORE;
-	service_name = PG_ARGISNULL(0) ? NULL : PG_GETARG_NAME(0);
-	if (strcmp(SERVICE_ADA, NameStr(*service_name)))
-		ereport(ERROR, (errmsg("Unsupported AI service: '%s'.\n", NameStr(*service_name))));
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+		ereport(FATAL,
+				(errmsg("Incorrect parameters cannot proceed.\n")));
 
-	old_context = MemoryContextSwitchTo(func_context);
-	/* get the call backs for the service */
-	return_value = initialize_service(NameStr(*service_name), ai_service);
+	strcpy(service_name.data, SERVICE_OPENAI);
+	strcpy(model_name.data, MODEL_OPENAI_EMBEDDINGS);
+	ai_service->function_flags |= FUNCTION_CREATE_VECTOR_STORE;
+
+	return_value = initialize_service(NameStr(service_name), NameStr(model_name), ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
-	return_value = (ai_service->set_and_validate_options)(ai_service, fcinfo);
+	return_value = (ai_service->set_and_validate_options) (ai_service, fcinfo);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
 
-	// make call to ada service to create the vectore store
-	return_value = (ai_service->init_service_data)(NULL, ai_service, NULL);
+	/* make call to ada service to create the vectore store */
+	return_value = (ai_service->init_service_data) (NULL, ai_service, NULL);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot initialize data."));
-	/* call the transfer TODO return value*/
-	(ai_service->rest_transfer)(ai_service);
+
+	/* call the transfer TODO return value */
+	(ai_service->rest_transfer) (ai_service);
 
 	MemoryContextSwitchTo(old_context);
-	PG_RETURN_TEXT_P(cstring_to_text((char*)(ai_service->rest_response->data)));
+	PG_RETURN_TEXT_P(cstring_to_text((char *) (ai_service->rest_response->data)));
 }
 
 /*
@@ -338,32 +270,33 @@ create_vector_store(PG_FUNCTION_ARGS)
  */
 typedef struct srf_query_data
 {
-		int current_row;
-		int max_rows;
-		bool print_header_info;
-		SPITupleTable *tuble_table;
+	int				current_row;
+	int				max_rows;
+	bool			print_header_info;
+	SPITupleTable	*tuble_table;
 }srf_query_data;
 
-PG_FUNCTION_INFO_V1(query_vector_store);
+PG_FUNCTION_INFO_V1(pg_ai_query_vector_store);
 Datum
-query_vector_store(PG_FUNCTION_ARGS)
+pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 {
-	FuncCallContext 	*funcctx;
-	MemoryContext 		oldcontext;
-	srf_query_data 		*query_data;
-	Datum               result;
+	FuncCallContext		*funcctx;
+	MemoryContext		oldcontext;
+	srf_query_data		*query_data;
+	Datum				result;
 	char				*query_string;
-	uint32_t            spi_result;
-	int                 i;
-    int                 col_count;
-	HeapTuple           tuple;
-	StringInfo          header;
-    AIService			*ai_service;
-	int                 return_value;
-	char             	pk_col[COLUMN_NAME_LEN];
-	char 				*hide_cols[] = {EMBEDDINGS_COLUMN_NAME,EMBEDDINGS_COSINE_SIMILARITY, pk_col};
-    int 				hide_col_count = sizeof(hide_cols)/sizeof(hide_cols[0]);
-	Name				service_name;
+	uint32_t			spi_result;
+	int					i;
+	int					col_count;
+	HeapTuple			tuple;
+	StringInfo			header;
+	AIService			*ai_service;
+	int					return_value;
+	char				pk_col[COLUMN_NAME_LEN];
+	char				*hide_cols[] = {EMBEDDINGS_COLUMN_NAME, EMBEDDINGS_COSINE_SIMILARITY, pk_col};
+	int					hide_col_count = sizeof(hide_cols) / sizeof(hide_cols[0]);
+	NameData			service_name;
+	NameData			model_name;
 
 	if (SRF_IS_FIRSTCALL())
 	{
@@ -371,37 +304,38 @@ query_vector_store(PG_FUNCTION_ARGS)
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 		query_string = palloc(SERVICE_MAX_RESPONSE_SIZE);
 
-	    //---------------------------------------------------------------------
-	    /* make the reset call to get the embeddings and the corresponding sql */
-        ai_service = palloc0(sizeof(AIService));
-	    /* clear all pointers */
-	    initialize_self(ai_service);
+		/* --------------------------------------------------------------------- */
+		/* make the reset call to get the embeddings and the corresponding sql */
+		ai_service = palloc0(sizeof(AIService));
 
-		/* get the service name and initialize */
-		service_name = PG_ARGISNULL(0) ? NULL : PG_GETARG_NAME(0);
-	   	if (strcmp(SERVICE_ADA, NameStr(*service_name)))
-		    ereport(ERROR,
-				(errmsg("Unsupported service '%s'.\n", NameStr(*service_name))));
-	    ai_service->function_flags |= ADA_FUNCTION_QUERY_VECTOR_STORE;
-	    return_value = initialize_service(NameStr(*service_name), ai_service);
-	    if (return_value)
-		    PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
+		strcpy(service_name.data, SERVICE_OPENAI);
+		strcpy(model_name.data, MODEL_OPENAI_EMBEDDINGS);
+		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
+
+		/* initialize based on the service and model */
+		return_value = initialize_service(NameStr(service_name), NameStr(model_name), ai_service);
+		if (return_value)
+			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
 		/* pass on the arguments to the service to validate */
-		return_value = (ai_service->set_and_validate_options)(ai_service, fcinfo);
+		return_value = (ai_service->set_and_validate_options) (ai_service, fcinfo);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
 
 		/* initialize for the data transfer */
-	    return_value = (ai_service->init_service_data)(NULL, ai_service, NULL);
-	    if (return_value)
-		    PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
-		(ai_service->rest_transfer)(ai_service);
-	    // ereport(INFO, (errmsg("%s ",(char*)(ai_service->rest_response->data))));
-		sprintf(query_string, "%s", (char*)(ai_service->service_data->response));
-		//sprintf(query_string, "%s", "Select * from movies where id < 10");
-		//ereport(INFO,(errmsg("QUERY_STRING :%s\n",query_string)));
-		//---------------------------------------------------------------------
+		return_value = (ai_service->init_service_data) (NULL, ai_service, NULL);
+		if (return_value)
+			PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
+		(ai_service->rest_transfer) (ai_service);
+
+		/*
+		 * ereport(INFO, (errmsg("%s
+		 * ",(char*)(ai_service->rest_response->data))));
+		 */
+		sprintf(query_string, "%s", (char *) (ai_service->service_data->response));
+		/* sprintf(query_string, "%s", "Select * from movies where id < 10"); */
+		/* ereport(INFO,(errmsg("QUERY_STRING :%s\n",query_string))); */
+		/* --------------------------------------------------------------------- */
 		query_data = palloc(sizeof(srf_query_data));
 		query_data->current_row = 0;
 		query_data->print_header_info = true;
@@ -409,44 +343,45 @@ query_vector_store(PG_FUNCTION_ARGS)
 
 		/* connect to the server and retrive the matching data */
 		spi_result = SPI_connect();
-        if (spi_result != SPI_OK_CONNECT)
+		if (spi_result != SPI_OK_CONNECT)
 		{
-            ereport(ERROR,
-                    (errcode(ERRCODE_CONNECTION_FAILURE),
-                     errmsg("Cnnection failed with error code %d", spi_result)));
-        }
-		spi_result = SPI_execute(query_string, true/*read only*/, 0/*all tuples*/);
+			ereport(ERROR,
+					(errcode(ERRCODE_CONNECTION_FAILURE),
+					 errmsg("Cnnection failed with error code %d", spi_result)));
+		}
+		spi_result = SPI_execute(query_string, true /* read only */ , 0 /* all tuples */ );
 		if (spi_result != SPI_OK_SELECT)
 		{
-            ereport(ERROR,
-                    (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                     errmsg("Execution failed with error code %d", spi_result)));
-        }
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("Execution failed with error code %d", spi_result)));
+		}
 
-    	query_data->max_rows = SPI_processed;
+		query_data->max_rows = SPI_processed;
 		query_data->tuble_table = SPI_tuptable;
 		funcctx->tuple_desc = BlessTupleDesc(SPI_tuptable->tupdesc);
 
 		make_pk_col_name(pk_col, COLUMN_NAME_LEN, get_option_value(ai_service->service_data->options, OPTION_STORE_NAME));
-		query_data->tuble_table = remove_columns_from_spitb(query_data->tuble_table, &(funcctx->tuple_desc), (char **)hide_cols, hide_col_count);
+		query_data->tuble_table = remove_columns_from_spitb(query_data->tuble_table, &(funcctx->tuple_desc), (char **) hide_cols, hide_col_count);
 		MemoryContextSwitchTo(oldcontext);
 	}
 	funcctx = SRF_PERCALL_SETUP();
 	query_data = funcctx->user_fctx;
 
-	/* print a header TODO: add relation name to the col name*/
+	/* print a header TODO: add relation name to the col name */
 	if (query_data->print_header_info)
 	{
 		query_data->print_header_info = false;
 		col_count = funcctx->tuple_desc->natts;
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 		header = makeStringInfo();
-		appendStringInfo(header, "\n Query store meta data (");
-		for (i=0; i<col_count; i++)
+		appendStringInfo(header, "META DATA (");
+		for (i = 0; i < col_count; i++)
 		{
 			Form_pg_attribute attr = TupleDescAttr(funcctx->tuple_desc, i);
+
 			appendStringInfo(header, " %s ", NameStr(attr->attname));
-        }
+		}
 		appendStringInfo(header, ")");
 		MemoryContextSwitchTo(oldcontext);
 		ereport(INFO, errmsg("%s", header->data));
@@ -455,22 +390,22 @@ query_vector_store(PG_FUNCTION_ARGS)
 	/* As long as there is data to be returned */
 	if (query_data->current_row < query_data->max_rows)
 	{
-			tuple = query_data->tuble_table->vals[query_data->current_row];
-			oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
-        	result = heap_copy_tuple_as_datum(tuple, funcctx->tuple_desc);
-			MemoryContextSwitchTo(oldcontext);
-			query_data->current_row++;
-        	SRF_RETURN_NEXT(funcctx, result);
-    }
+		tuple = query_data->tuble_table->vals[query_data->current_row];
+		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
+		result = heap_copy_tuple_as_datum(tuple, funcctx->tuple_desc);
+		MemoryContextSwitchTo(oldcontext);
+		query_data->current_row++;
+		SRF_RETURN_NEXT(funcctx, result);
+	}
 	else
 	{
-		// ereport(INFO,(errmsg("DONE returning rows \n")));
+		/* ereport(INFO,(errmsg("DONE returning rows \n"))); */
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 		SPI_finish();
 		MemoryContextSwitchTo(oldcontext);
-        SRF_RETURN_DONE(funcctx);
-    }
+		SRF_RETURN_DONE(funcctx);
+	}
 
 	/* unreachable */
-    PG_RETURN_VOID();
+	PG_RETURN_VOID();
 }

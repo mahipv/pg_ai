@@ -11,7 +11,7 @@
 static ServiceOption *
 get_new_node()
 {
-	return((ServiceOption*)palloc0(sizeof(ServiceOption)));
+	return ((ServiceOption *) palloc0(sizeof(ServiceOption)));
 }
 
 /*
@@ -21,15 +21,14 @@ get_new_node()
  * @param[out]	option_list			add a new option to the list
  * @param[in]	name				name of the new option to be defined
  * @param[in]	description			brief description of the option showed in help
- * @param[in]	provider_option		non-zero if the option is  applicable to the provider
- *									and not service specific
+ * @param[in]	guc_option			non-zero if the option is to be read from a GUC
  * @param[in]	required			non-zero if it is a required to set
  * @return		void
  *
  */
 void
-define_new_option(ServiceOption **option_list, const char *name, char *description,
-				  const int provider_option, const int required)
+define_new_option(ServiceOption * *option_list, const char *name, char *description,
+				  const int guc_option, const int required, bool help_display)
 {
 
 	ServiceOption *last_node = *option_list;
@@ -37,11 +36,12 @@ define_new_option(ServiceOption **option_list, const char *name, char *descripti
 
 	strncpy(new_node->name, name, OPTION_NAME_LEN);
 	strncpy(new_node->description, description, OPTION_VALUE_LEN);
-	new_node->provider = provider_option;
+	new_node->guc_option = guc_option;
 	new_node->required = required;
 	new_node->is_set = false;
-
-	while(last_node && last_node->next != NULL)
+	new_node->help_display = help_display;
+	
+	while (last_node && last_node->next != NULL)
 		last_node = last_node->next;
 
 	if (!last_node)
@@ -66,10 +66,10 @@ define_new_option(ServiceOption **option_list, const char *name, char *descripti
  *
  */
 int
-set_option_value(ServiceOption *list, const char *name, const char *value)
+set_option_value(ServiceOption * list, const char *name, const char *value)
 {
-	ServiceOption	*node = list;
-	int				found = 0;
+	ServiceOption *node = list;
+	int			found = 0;
 
 	while (node && !found)
 	{
@@ -96,10 +96,10 @@ set_option_value(ServiceOption *list, const char *name, const char *value)
  *
  */
 int
-get_option_value_copy(ServiceOption *list, const char *name, char *value)
+get_option_value_copy(ServiceOption * list, const char *name, char *value)
 {
-	ServiceOption	*node = list;
-	int				found = 0;
+	ServiceOption *node = list;
+	int			found = 0;
 
 	while (node && !found)
 	{
@@ -123,9 +123,9 @@ get_option_value_copy(ServiceOption *list, const char *name, char *value)
  *
  */
 char *
-get_option_value(ServiceOption *list, const char *name)
+get_option_value(ServiceOption * list, const char *name)
 {
-	ServiceOption	*node = list;
+	ServiceOption *node = list;
 
 	while (node)
 	{
@@ -147,16 +147,16 @@ get_option_value(ServiceOption *list, const char *name)
  *
  */
 void
-print_service_options(ServiceOption *list, int print_value)
+print_service_options(ServiceOption * list, int print_value)
 {
-	ServiceOption	*option = list;
+	ServiceOption *option = list;
 
 	while (option)
 	{
 		if (print_value)
-			ereport(INFO,(errmsg("%s: %s\n",option->name, option->value)));
+			ereport(INFO, (errmsg("%s: %s\n", option->name, option->value)));
 		else
-			ereport(INFO,(errmsg("%s:%s\n",option->name, option->description)));
+			ereport(INFO, (errmsg("%s:%s\n", option->name, option->description)));
 		option = option->next;
 	}
 }
