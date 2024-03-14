@@ -112,7 +112,7 @@ image_gen_set_and_validate_options(void *service, void *function_options)
 	int			arg_offset;
 
 	/* aggregate functions get an extra argument at position 0 */
-	arg_offset = (ai_service->function_flags & FUNCTION_GET_INSIGHT_AGGREGATE) ? 1 : 0;
+	arg_offset = (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE) ? 1 : 0;
 
 	if (!PG_ARGISNULL(0 + arg_offset))
 		set_option_value(ai_service->service_data->options, OPTION_INSIGHT_COLUMN, text_to_cstring(PG_GETARG_TEXT_P(0 + arg_offset)));
@@ -120,17 +120,17 @@ image_gen_set_and_validate_options(void *service, void *function_options)
 
 	if (!PG_ARGISNULL(1 + arg_offset))
 	{
-		if (ai_service->function_flags & FUNCTION_GET_INSIGHT_AGGREGATE)
+		if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE)
 			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT_AGG, text_to_cstring(PG_GETARG_TEXT_P(1 + arg_offset)));
 		else
 			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT, text_to_cstring(PG_GETARG_TEXT_P(1 + arg_offset)));
 	}
-	else /* set the default prompts*/
+	else						/* set the default prompts */
 	{
-		if (ai_service->function_flags & FUNCTION_GET_INSIGHT_AGGREGATE)
+		if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE)
 			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT_AGG, IMAGE_GEN_AGG_PROMPT);
 		else
-			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT, IMAGE_GEN_PROMPT);	
+			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT, IMAGE_GEN_PROMPT);
 	}
 
 	/*
@@ -203,8 +203,11 @@ image_gen_init_service_data(void *options, void *service, void *data)
 	/* initialize data partly here */
 	strcpy(service_data->url, IMAGE_GEN_API_URL);
 
-	strcpy(service_data->request,
-		   get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT));
+	if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE)
+		strcpy(service_data->request, get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT));
+
+	if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE)
+		strcpy(service_data->request, get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT_AGG));
 
 	strcat(service_data->request, " \"");
 	strcat(service_data->request, column_data);
@@ -318,4 +321,5 @@ image_gen_post_header_maker(char *buffer, const size_t maxlen,
 	strcpy(buffer, IMAGE_GEN_PRE_PREFIX);
 	strcat(buffer, data);
 	strcat(buffer, IMAGE_GEN_POST_PREFIX);
+	/* ereport(INFO, (errmsg("Post header: %s\n", buffer))); */
 }

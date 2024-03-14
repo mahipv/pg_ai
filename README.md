@@ -21,8 +21,8 @@ insights into data, providing new interpretations over time and with each query
 cd pg_ai
 make install
 ```
-- pg_ai uses libcurl for REST communication, make sure the curl library is installed.
-- uses the [pgvector](https://github.com/pgvector/pgvector) extension for vector operations, make sure the extension is installed.
+- pg_ai uses libcurl for communication with the AI services, make sure the curl is installed.
+- uses the [pgvector](https://github.com/pgvector/pgvector) extension for vector operations, needs to be installed for vector operations.
 
 
 ## Getting Started
@@ -31,32 +31,33 @@ make install
 CREATE EXTENSION pg_ai;
 ```
 
-Set the [API Key](https://platform.openai.com/api-keys)
+Set the OpenAI [API Key](https://platform.openai.com/api-keys)
 ```sql
 SET pg_ai.api_key='sk-********q';
 ```
 
-1. Get the column data interpreted by the LLM.
+Get the column data interpreted by LLM.
 ```sql
 SELECT col1, col2, pg_ai_insight(col1) AS insight FROM my_table WHERE id > 5;
 ```
 
-2. Aggregate version of the above function.
+Aggregate version of the above function.
 ```sql
-SELECT pg_ai_insight_agg(col1, 'Suggest a topic name for the values') AS topic FROM my_table WHERE id > 5;
+SELECT pg_ai_insight_agg(col1, 'Suggest a topic name for the values') 
+                        AS topic FROM my_table WHERE id > 5;
 ```
 
-3. Create a vector store for a dataset
+Create vector store for a dataset
 ```sql
  SELECT pg_ai_create_vector_store(store => 'movies_vec_store_90s',
-                           query => 'SELECT * FROM public.movies WHERE release_year > 1990',
-                           notes => 'movies released after 1990');
+                                  query => 'SELECT * FROM public.movies WHERE release_year > 1990',
+                                  notes => 'movies released after 1990');
 ```
 
-4. Query the vector store
+Query the vector store
 ```sql
 SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
-                                prompt => 'movies on travel',
+                                prompt => 'movies on time travel',
                                 count=>3);
 ```
 
@@ -64,6 +65,9 @@ SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
 ```sql
 SELECT pg_ai_help();
 ```
+
+## More Models
+[Text to Image](README_image_gen.md)
 
 ## Notes
 
@@ -73,7 +77,7 @@ Currently supported service models.
 2. OpenAI - dall-e2
 3. OpenAI - ada(embeddings)
 
-## TODOs
+## TODO
 
 * Incorporate integration with additional local and remote LLMs.
 * Implement parallelization and background loading of embedding vectors.
