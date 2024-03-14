@@ -71,7 +71,7 @@
 /* -----------------8< moderation ---------- */
 /* "instruct" is better at answering pointed questions and "gpt" in general is chatty */
 #define  MODEL_OPENAI_MODERATION "text-moderation-latest"
-#define  MODEL_OPENAI_MODERATION_DESCRIPTION "Model that classifies input as potentially harmful across several categories."
+#define  MODEL_OPENAI_MODERATION_DESCRIPTION "Classifies input as potentially harmful across several categories."
 
 #define MODERATION_API_URL "https://api.openai.com/v1/moderations"
 

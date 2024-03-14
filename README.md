@@ -1,10 +1,8 @@
 # pg_ai
 
-AI extension for PostgreSQL to interpret and query data with RAG builtin using only SQL.
+PostgreSQL extension with builtin RAG capabilities, enabling the interpretation and querying of data through both natural language and SQL functions.
 
-## Description
-
-The pg_ai extension harnesses AI models for two primary purposes:
+The pg_ai extension harnesses AI LLMs for:
 
 (i) Facilitating natural language interaction with datasets:
 Transforming query results from PostgreSQL tables into a vector store,
@@ -43,22 +41,22 @@ SELECT col1, col2, pg_ai_insight(col1) AS insight FROM my_table WHERE id > 5;
 
 Aggregate version of the above function.
 ```sql
-SELECT pg_ai_insight_agg(col1, 'Suggest a topic name for the values') 
-                        AS topic FROM my_table WHERE id > 5;
+SELECT pg_ai_insight_agg(col1, 'Suggest a topic name for the values') AS topic
+ FROM my_table WHERE id > 5;
 ```
 
-Create vector store for a dataset
+Create vector store for a dataset.
 ```sql
  SELECT pg_ai_create_vector_store(store => 'movies_vec_store_90s',
                                   query => 'SELECT * FROM public.movies WHERE release_year > 1990',
                                   notes => 'movies released after 1990');
 ```
 
-Query the vector store
+Query the vector store.
 ```sql
 SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
                                 prompt => 'movies on time travel',
-                                count=>3);
+                                count => 3);
 ```
 
 ### Help
