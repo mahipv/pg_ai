@@ -1,7 +1,7 @@
 
 ## Text Modertations
 
-pg_ai extension can be used to get moderations for the data in the tables. This model can classify data as potentially harmful across several categories.
+pg_ai extension can be used to get moderations for the table data. This model can classify data as potentially harmful across several categories.
 
 ## Getting Started
 

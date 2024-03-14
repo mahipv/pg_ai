@@ -1,6 +1,6 @@
 # pg_ai
 
-AI extension for PostgreSQL to interpret and query data with RAG builtin.
+AI extension for PostgreSQL to interpret and query data with RAG builtin using only SQL.
 
 ## Description
 
@@ -69,6 +69,7 @@ SELECT pg_ai_help();
 ## Other supportMore Models
 
 [Moderations](README_moderations.md)
+
 [Text to Image](README_image_gen.md)
 
 ## Notes
