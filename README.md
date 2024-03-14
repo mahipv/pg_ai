@@ -66,7 +66,7 @@ SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
 SELECT pg_ai_help();
 ```
 
-## Other supportMore Models
+## More Supported Models
 
 [Moderations](README_moderations.md)
 
@@ -74,7 +74,7 @@ SELECT pg_ai_help();
 
 ## Notes
 
-Currently used model versions.
+Model versions in use.
 
 1. OpenAI - gpt-3.5-turbo-instruct
 2. OpenAI - text-embedding-ada-002
