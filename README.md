@@ -66,24 +66,27 @@ SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
 SELECT pg_ai_help();
 ```
 
-## More Models
+## Other supportMore Models
+
+[Moderations](README_moderations.md)
 [Text to Image](README_image_gen.md)
 
 ## Notes
 
-Currently supported service models.
+Currently used model versions.
 
 1. OpenAI - gpt-3.5-turbo-instruct
-2. OpenAI - dall-e2
-3. OpenAI - ada(embeddings)
+2. OpenAI - text-embedding-ada-002
+3. OpenAI - text-moderation-stable
+4. OpenAI - dall-e-3
 
 ## TODO
 
-* Incorporate integration with additional local and remote LLMs.
 * Implement parallelization and background loading of embedding vectors.
 * Enhance support for curl read callbacks.
 * Tokenization mechanism for larger data.
-* Expand compatibility for other vector similarity algorithms & vector indexes.
+* Expand compatibility for other vector similarity algorithms & support vector indexes.
+* Integration with additional local and remote LLMs.
 
 ## Disclaimer
 

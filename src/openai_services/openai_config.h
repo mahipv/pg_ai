@@ -10,13 +10,6 @@
 #define GPT_SUMMARY_PROMPT "Get summary of the following in 1 lines."
 #define GPT_AGG_PROMPT "Suggest a topic for the following."
 
-/* TODO to be dynamically picked with model from options */
-#define GPT_DAVINCI_MAX_TOKEN			(4 * 1024)
-#define GPT_DAVINCI_MAX_PROMPT_TOKEN	(3 * 1024)	/* 75 */
-#define GPT_DAVINCI_MAX_RESULT_TOKEN	(1 * 1024)	/* 25 */
-#define GPT_DAVINCI_MAX_PROMPT_WC      (CHAT_GPT_DAVINCI_MAX_PROMPT_TOKEN/1024 * \
-											 APPROX_WORDS_PER_1K_TOKENS)
-
 #define RESPONSE_JSON_CHOICE "choices"
 #define RESPONSE_JSON_KEY "text"
 
@@ -73,5 +66,19 @@
 "(ii) pg_ai_generate_image_agg(<text column>,\n\
                       '<prompt agg> eg: Make a picture with the following:') \n"
 /*-------------- Image Gen >8--------------*/
+
+
+/* -----------------8< moderation ---------- */
+/* "instruct" is better at answering pointed questions and "gpt" in general is chatty */
+#define  MODEL_OPENAI_MODERATION "text-moderation-latest"
+#define  MODEL_OPENAI_MODERATION_DESCRIPTION "Model that classifies input as potentially harmful across several categories."
+
+#define MODERATION_API_URL "https://api.openai.com/v1/moderations"
+
+#define MODERATION_HELP "\nFunctions:\n"\
+"(i) pg_ai_moderation(<text column>)  \n\n" \
+"(ii) pg_ai_moderation_agg(<text column>) \n"
+/* -----------------moderation >8---------- */
+
 
 #endif							/* _OPENAI_CONFIG_H_ */

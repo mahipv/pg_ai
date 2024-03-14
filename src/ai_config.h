@@ -58,7 +58,8 @@
 #define FUNCTION_GENERATE_IMAGE_AGGREGATE   0x00000008
 #define FUNCTION_CREATE_VECTOR_STORE        0x00000010
 #define FUNCTION_QUERY_VECTOR_STORE         0x00000020
-
+#define FUNCTION_MODERATION                 0x00000040
+#define FUNCTION_MODERATION_AGGREGATE       0x00000080
 
 /* -----------------8<--Function Arguments ---------- */
 #define OPTION_SERVICE_NAME "service"

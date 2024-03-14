@@ -8,6 +8,7 @@ char	   *open_ai_models[] = {
 	MODEL_OPENAI_GPT,
 	MODEL_OPENAI_EMBEDDINGS,
 	MODEL_OPENAI_IMAGE_GEN,
+	MODEL_OPENAI_MODERATION,
 	NULL
 };
 
@@ -70,7 +71,7 @@ pg_ai_help(PG_FUNCTION_ARGS)
 			sprintf(display_string + running_length, "%s  ",
 					(ai_service->get_model_name) (ai_service));
 			running_length = strlen(display_string);
-	
+
 			/* add model description */
 			strcat(display_string + running_length, "Info:");
 			running_length = strlen(display_string);

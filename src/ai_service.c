@@ -2,7 +2,7 @@
 #include "openai_services/service_gpt.h"
 #include "openai_services/service_image_gen.h"
 #include "openai_services/service_embeddings.h"
-
+#include "openai_services/service_moderation.h"
 
 /*
  * Clear the AIService data
@@ -95,6 +95,33 @@ initialize_ada(AIService * ai_service)
 }
 
 /*
+ * Initialize AIService vtable with the function from the ChatGPT service.
+ *
+ * @param[out]	ai_service	pointer to the AIService to be initialized
+ * @return		void
+ *
+ */
+static int
+initialize_moderation(AIService * ai_service)
+{
+	/* PG <-> AI functions */
+	ai_service->get_service_help = moderation_help;
+	ai_service->init_service_options = moderation_init_service_options;
+	ai_service->set_and_validate_options = moderation_set_and_validate_options;
+	ai_service->init_service_data = moderation_init_service_data;
+	ai_service->cleanup_service_data = moderation_cleanup_service_data;
+
+	/* AI <-> REST functions */
+	ai_service->set_service_buffers = moderation_set_service_buffers;
+	ai_service->add_service_headers = moderation_add_service_headers;
+	ai_service->post_header_maker = moderation_post_header_maker;
+	ai_service->rest_transfer = moderation_rest_transfer;
+
+	return 0;
+}
+
+
+/*
  * Initialize the AIService based on the service parameter.
  *
  * @param[in/out]	ai_service	pointer to the AIService to be initialized
@@ -117,6 +144,9 @@ initialize_service(const char *service_name, char *model_name, AIService * ai_se
 
 		if (!strcmp(MODEL_OPENAI_EMBEDDINGS, model_name))
 			return_value = initialize_ada(ai_service);
+
+		if (!strcmp(MODEL_OPENAI_MODERATION, model_name))
+			return_value = initialize_moderation(ai_service);
 	}
 
 	/* service supported, fill in the pointers for common functions */
