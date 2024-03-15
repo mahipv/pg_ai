@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <curl/curl.h>
 #include "service_option.h"
-#include "openai_services/openai_config.h"
+#include "services/openai/openai_config.h"
 
 /* supported service providers */
 /*--------------8<--------------*/

@@ -19,9 +19,9 @@ void		embeddings_init_service_options(void *service);
 int			execute_query_spi(const char *query, bool read_only);
 void		removeNewlines(char *stream);
 
-//move to utils TODO
+/* move to utils TODO */
 int			embeddings_set_and_validate_options(void *service, void *function_options);
 int			embeddings_handle_response_headers(void *service, void *user_data);
 int			embeddings_handle_response_data(void *service, void *user_data);
 
-#endif /* _SERVICE_EMBEDDINGS_H_ */
+#endif						/* _SERVICE_EMBEDDINGS_H_ */

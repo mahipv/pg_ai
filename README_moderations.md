@@ -21,5 +21,5 @@ SELECT col1, pg_ai_moderation(col1) FROM messages_table WHERE id=1;
 
 Aggregate version of the above function.
 ```sql
-SELECT pg_ai_moderation_agg(col1, NULL) AS "Topic" FROM messages_table WHERE id<10;
+SELECT pg_ai_moderation_agg(col1) FROM messages_table WHERE id<10;
 ```

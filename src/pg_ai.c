@@ -375,7 +375,7 @@ pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 		col_count = funcctx->tuple_desc->natts;
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 		header = makeStringInfo();
-		appendStringInfo(header, "META DATA (");
+		appendStringInfo(header, "METADATA (");
 		for (i = 0; i < col_count; i++)
 		{
 			Form_pg_attribute attr = TupleDescAttr(funcctx->tuple_desc, i);

@@ -109,7 +109,7 @@ typedef struct AIService
 }			AIService;
 
 void		reset_service(AIService * ai_service);
-int			initialize_service(const char *service_name, char *model_name, AIService * ai_service);
+int			initialize_service(const char *service_name, const char *model_name, AIService * ai_service);
 const char *get_service_name(const AIService * ai_service);
 const char *get_service_description(const AIService * ai_service);
 const char *get_model_name(const AIService * ai_service);

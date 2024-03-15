@@ -1,8 +1,8 @@
 #include "ai_service.h"
-#include "openai_services/service_gpt.h"
-#include "openai_services/service_image_gen.h"
-#include "openai_services/service_embeddings.h"
-#include "openai_services/service_moderation.h"
+#include "services/openai/service_gpt.h"
+#include "services/openai/service_image_gen.h"
+#include "services/openai/service_embeddings.h"
+#include "services/openai/service_moderation.h"
 
 /*
  * Clear the AIService data
@@ -25,16 +25,16 @@ reset_service(AIService * ai_service)
  *
  */
 static int
-initialize_chat_gpt(AIService * ai_service)
+initialize_gpt(AIService * ai_service)
 {
-	/* PG <-> AI functions */
+	/* PG <-> PG_AI functions */
 	ai_service->get_service_help = gpt_help;
 	ai_service->init_service_options = gpt_init_service_options;
 	ai_service->set_and_validate_options = gpt_set_and_validate_options;
 	ai_service->init_service_data = gpt_init_service_data;
 	ai_service->cleanup_service_data = gpt_cleanup_service_data;
 
-	/* AI <-> REST functions */
+	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = gpt_set_service_buffers;
 	ai_service->add_service_headers = gpt_add_service_headers;
 	ai_service->post_header_maker = gpt_post_header_maker;
@@ -51,16 +51,16 @@ initialize_chat_gpt(AIService * ai_service)
  *
  */
 static int
-initialize_dalle2(AIService * ai_service)
+initialize_image_generator(AIService * ai_service)
 {
-	/* PG <-> AI functions */
+	/* PG <-> PG_AI functions */
 	ai_service->get_service_help = image_gen_help;
 	ai_service->init_service_options = image_gen_init_service_options;
 	ai_service->set_and_validate_options = image_gen_set_and_validate_options;
 	ai_service->init_service_data = image_gen_init_service_data;
 	ai_service->cleanup_service_data = image_gen_cleanup_service_data;
 
-	/* AI <-> REST functions */
+	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = image_gen_set_service_buffers;
 	ai_service->add_service_headers = image_gen_add_service_headers;
 	ai_service->post_header_maker = image_gen_post_header_maker;
@@ -77,16 +77,16 @@ initialize_dalle2(AIService * ai_service)
  *
  */
 static int
-initialize_ada(AIService * ai_service)
+initialize_embeddings(AIService * ai_service)
 {
-	/* PG <-> AI functions */
+	/* PG <-> PG_AI functions */
 	ai_service->get_service_help = embeddings_help;
 	ai_service->init_service_options = embeddings_init_service_options;
 	ai_service->set_and_validate_options = embeddings_set_and_validate_options;
 	ai_service->init_service_data = embeddings_init_service_data;
 	ai_service->cleanup_service_data = embeddings_cleanup_service_data;
 
-	/* AI <-> REST functions */
+	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = embeddings_set_service_buffers;
 	ai_service->add_service_headers = embeddings_add_service_headers;
 	ai_service->post_header_maker = embeddings_post_header_maker;
@@ -104,14 +104,14 @@ initialize_ada(AIService * ai_service)
 static int
 initialize_moderation(AIService * ai_service)
 {
-	/* PG <-> AI functions */
+	/* PG <-> PG_AI functions */
 	ai_service->get_service_help = moderation_help;
 	ai_service->init_service_options = moderation_init_service_options;
 	ai_service->set_and_validate_options = moderation_set_and_validate_options;
 	ai_service->init_service_data = moderation_init_service_data;
 	ai_service->cleanup_service_data = moderation_cleanup_service_data;
 
-	/* AI <-> REST functions */
+	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = moderation_set_service_buffers;
 	ai_service->add_service_headers = moderation_add_service_headers;
 	ai_service->post_header_maker = moderation_post_header_maker;
@@ -130,23 +130,38 @@ initialize_moderation(AIService * ai_service)
  *
  */
 int
-initialize_service(const char *service_name, char *model_name, AIService * ai_service)
+initialize_service(const char *service_name, const char *model_name, AIService * ai_service)
 {
 	int			return_value = RETURN_ERROR;
+	char		service_description[PG_AI_DESC_LENGTH];
+	char		model_description[PG_AI_DESC_LENGTH];
 
 	if (!strcmp(SERVICE_OPENAI, service_name))
 	{
+		strcpy(service_description, SERVICE_OPENAI_DESCRIPTION);
 		if (!strcmp(MODEL_OPENAI_GPT, model_name))
-			return_value = initialize_chat_gpt(ai_service);
+		{
+			return_value = initialize_gpt(ai_service);
+			strcpy(model_description, MODEL_OPENAI_GPT_DESCRIPTION);
+		}
 
 		if (!strcmp(MODEL_OPENAI_IMAGE_GEN, model_name))
-			return_value = initialize_dalle2(ai_service);
+		{
+			return_value = initialize_image_generator(ai_service);
+			strcpy(model_description, MODEL_OPENAI_IMAGE_GEN_DESCRIPTION);
+		}
 
 		if (!strcmp(MODEL_OPENAI_EMBEDDINGS, model_name))
-			return_value = initialize_ada(ai_service);
+		{
+			return_value = initialize_embeddings(ai_service);
+			strcpy(model_description, MODEL_OPENAI_EMBEDDINGS_DESCRIPTION);
+		}
 
 		if (!strcmp(MODEL_OPENAI_MODERATION, model_name))
+		{
 			return_value = initialize_moderation(ai_service);
+			strcpy(model_description, MODEL_OPENAI_EMBEDDINGS_DESCRIPTION);
+		}
 	}
 
 	/* service supported, fill in the pointers for common functions */
@@ -159,6 +174,11 @@ initialize_service(const char *service_name, char *model_name, AIService * ai_se
 		ai_service->get_model_description = get_model_description;
 		/* initialize service data and define options for the service */
 		(ai_service->init_service_options) (ai_service);
+		/* initialize the service & model data */
+		strcpy(ai_service->service_data->name, service_name);
+		strcpy(ai_service->service_data->name_description, service_description);
+		strcpy(ai_service->service_data->model, model_name);
+		strcpy(ai_service->service_data->model_description, model_description);
 	}
 
 	return return_value;

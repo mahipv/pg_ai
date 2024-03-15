@@ -40,26 +40,22 @@ pg_ai_moderation(PG_FUNCTION_ARGS)
 	strcpy(service_name.data, SERVICE_OPENAI);
 	strcpy(model_name.data, MODEL_OPENAI_MODERATION);
 
-    ereport(INFO, (errmsg("service_name: %s, model_name: %s", NameStr(service_name), NameStr(model_name))));
 	ai_service->function_flags |= FUNCTION_MODERATION;
 	return_value = initialize_service(NameStr(service_name), NameStr(model_name), ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
-    ereport(INFO, (errmsg("service_name1: %s, model_name: %s", NameStr(service_name), NameStr(model_name))));
 	/* set options based on parameters and read from guc */
 	return_value = (ai_service->set_and_validate_options) (ai_service, fcinfo);
 	if (return_value)
 		ereport(ERROR, (errmsg("Error: Invalid Options\n")));
 
-    ereport(INFO, (errmsg("service_name2: %s, model_name: %s", NameStr(service_name), NameStr(model_name))));
 	/* initialize the service data to be sent to the AI service	*/
 	return_value = (ai_service->init_service_data) (NULL, ai_service, NULL);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
 
-    ereport(INFO, (errmsg("service_name3: %s, model_name: %s", NameStr(service_name), NameStr(model_name))));
-	print_service_options(ai_service->service_data->options, 0);
+	/* print_service_options(ai_service->service_data->options, 0); */
 	/* print_service_options(ai_service->service_data->options, 1); */
 
 	/* call the transfer */

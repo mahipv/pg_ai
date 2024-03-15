@@ -50,11 +50,14 @@ moderation_init_service_options(void *service)
 	ai_service->service_data = service_data;
 
 	/* set the defaults */
-	strcpy(ai_service->service_data->name, SERVICE_OPENAI);
-	strcpy(ai_service->service_data->name_description, SERVICE_OPENAI_DESCRIPTION);
-	strcpy(ai_service->service_data->model, MODEL_OPENAI_GPT);
-	strcpy(ai_service->service_data->model_description, MODEL_OPENAI_MODERATION_DESCRIPTION);
 	define_options(ai_service);
+
+	/*
+	 * unused options but need to be there for help and when multiple services
+	 * and models are supported
+	 */
+	set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, get_service_name(ai_service));
+	set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, get_model_name(ai_service));
 }
 
 /*
@@ -85,14 +88,6 @@ moderation_set_and_validate_options(void *service, void *function_options)
 
 	if (!PG_ARGISNULL(0 + arg_offset))
 		set_option_value(ai_service->service_data->options, OPTION_INSIGHT_COLUMN, text_to_cstring(PG_GETARG_TEXT_P(0 + arg_offset)));
-
-	/*
-	 * ignore the service and model passed for now and always overwrite with
-	 * defaults. If multiple services are supported, then the service and
-	 * model can be set before above loop.
-	 */
-	set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, SERVICE_OPENAI);
-	set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, MODEL_OPENAI_GPT);
 
 	if (get_pg_ai_guc_variable(PG_AI_GUC_API_KEY))
 		set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, get_pg_ai_guc_variable(PG_AI_GUC_API_KEY));
