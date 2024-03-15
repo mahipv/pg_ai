@@ -4,7 +4,7 @@
 /* -----------------8< gpt---------- */
 /* "instruct" is better at answering pointed questions and "gpt" in general is chatty */
 #define  MODEL_OPENAI_GPT "gpt-3.5-turbo-instruct"
-#define  MODEL_OPENAI_GPT_DESCRIPTION "GPT Model better at answering pointed questions."
+#define  MODEL_OPENAI_GPT_DESCRIPTION "GPT Model for answering pointed questions."
 
 #define GPT_API_URL "https://api.openai.com/v1/completions"
 #define GPT_SUMMARY_PROMPT "Get summary of the following in 1 lines."

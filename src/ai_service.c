@@ -1,4 +1,5 @@
 #include "ai_service.h"
+#include <funcapi.h>
 #include "services/openai/service_gpt.h"
 #include "services/openai/service_image_gen.h"
 #include "services/openai/service_embeddings.h"
@@ -14,7 +15,8 @@
 void
 reset_service(AIService * ai_service)
 {
-	memset(ai_service, 0, sizeof(AIService));
+	if (ai_service->memory_context)
+		MemoryContextReset(ai_service->memory_context);
 }
 
 /*

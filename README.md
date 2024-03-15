@@ -2,7 +2,9 @@
 
 PostgreSQL extension with builtin RAG capabilities, enabling the interpretation and querying of data through both natural language and SQL functions.
 
-The pg_ai extension harnesses AI LLMs for:
+## Overview
+
+The pg_ai extension brings the power of AI and LLMs to SQL. pg_ai helps in:
 
 (i) Facilitating natural language interaction with datasets:
 Transforming query results from PostgreSQL tables into a vector store,

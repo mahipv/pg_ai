@@ -9,7 +9,7 @@
 /* supported service providers */
 /*--------------8<--------------*/
 #define  SERVICE_OPENAI "OpenAI"
-#define  SERVICE_OPENAI_DESCRIPTION "AI services supported by OpenAI"
+#define  SERVICE_OPENAI_DESCRIPTION "Models supported by OpenAI"
 #define  SERVICE_UNSUPPORTED_MSG "Service is not supported."
 /*-------------->8--------------*/
 
@@ -38,7 +38,7 @@
 #define OPTIONS_FILE_SIZE 64*1024
 
 /* help buffer size */
-#define MAX_HELP_SIZE 4*1024
+#define MAX_HELP_TEXT_SIZE 4*1024
 
 /* TODO this has be replaced by dynamic READ call back */
 #define POST_DATA_SIZE 16*1024
