@@ -28,14 +28,14 @@ RETURNS TEXT AS 'MODULE_PATHNAME', 'pg_ai_help' LANGUAGE C IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION pg_ai_create_vector_store(
 	store  			NAME,
-	query       	TEXT,
+	sql_query      	TEXT,
 	notes		  	NAME = NULL
 )RETURNS TEXT AS 'MODULE_PATHNAME', 'pg_ai_create_vector_store' LANGUAGE C IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION pg_ai_query_vector_store(
 	store		  			NAME,
-	prompt  				TEXT,
-	count                   INT = 3
+	nl_query  				TEXT,
+	count                   INT = 2
 )RETURNS SETOF record AS 'MODULE_PATHNAME', 'pg_ai_query_vector_store' LANGUAGE C IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION pg_ai_generate_image(

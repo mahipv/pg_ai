@@ -1,5 +1,6 @@
 #include "ai_service.h"
 #include <funcapi.h>
+#include "guc/pg_ai_guc.h"
 #include "services/openai/service_gpt.h"
 #include "services/openai/service_image_gen.h"
 #include "services/openai/service_embeddings.h"
@@ -181,6 +182,16 @@ initialize_service(const char *service_name, const char *model_name, AIService *
 		strcpy(ai_service->service_data->name_description, service_description);
 		strcpy(ai_service->service_data->model, model_name);
 		strcpy(ai_service->service_data->model_description, model_description);
+
+		if (get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY))
+			set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY));
+
+		/*
+		 * Currently unused, Useful when multiple services and models are
+		 * supported.
+		 */
+		set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, get_service_name(ai_service));
+		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, get_model_name(ai_service));
 	}
 
 	return return_value;

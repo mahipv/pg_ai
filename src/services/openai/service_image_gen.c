@@ -55,11 +55,12 @@ image_gen_init_service_options(void *service)
 
 	service_data = (ServiceData *) palloc0(sizeof(ServiceData));
 	ai_service->service_data = service_data;
+	/* Define the options for this service */
 	define_options(ai_service);
 
 	/*
-	 * unused options but need to be there for help and when multiple services
-	 * and models are supported
+	 * Currently unused, Useful when multiple services and models are
+	 * supported.
 	 */
 	set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, get_service_name(ai_service));
 	set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, get_model_name(ai_service));
@@ -135,9 +136,6 @@ image_gen_set_and_validate_options(void *service, void *function_options)
 		else
 			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT, IMAGE_GEN_PROMPT);
 	}
-
-	if (get_pg_ai_guc_variable(PG_AI_GUC_API_KEY))
-		set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, get_pg_ai_guc_variable(PG_AI_GUC_API_KEY));
 
 	options = ai_service->service_data->options;
 	while (options)

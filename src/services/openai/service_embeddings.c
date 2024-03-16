@@ -67,12 +67,12 @@ embeddings_init_service_options(void *service)
 
 	service_data = (ServiceData *) palloc0(sizeof(ServiceData));
 	ai_service->service_data = service_data;
-
+	/* Define the options for this service */
 	define_options(ai_service);
 
 	/*
-	 * unused options but need to be there for help and when multiple services
-	 * and models are supported
+	 * Currently unused, Useful when multiple services and models are
+	 * supported.
 	 */
 	set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, get_service_name(ai_service));
 	set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, get_model_name(ai_service));
@@ -121,7 +121,7 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 	if (ai_service->function_flags & FUNCTION_QUERY_VECTOR_STORE)
 	{
 		if (!PG_ARGISNULL(1))
-			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT,
+			set_option_value(ai_service->service_data->options, OPTION_NL_QUERY,
 							 text_to_cstring(PG_GETARG_TEXT_PP(1)));
 
 		/* limiting the record count out to MAX_COUNT_RECORDS */
@@ -137,10 +137,6 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 		set_option_value(ai_service->service_data->options, OPTION_MATCHING_ALGORITHM,
 						 EMBEDDINGS_COSINE_SIMILARITY);
 	}
-
-	if (get_pg_ai_guc_variable(PG_AI_GUC_API_KEY))
-		set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, get_pg_ai_guc_variable(PG_AI_GUC_API_KEY));
-
 
 	options = ai_service->service_data->options;
 	while (options)

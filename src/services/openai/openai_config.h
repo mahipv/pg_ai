@@ -29,12 +29,12 @@
 #define EMBEDDINGS_DESCRIPTION "OpenAI's embeddings model(vectors)"
 
 #define EMBEDDINGS_HELP "\nFunctions:\n"\
-"(ii) pg_ai_create_vector_store(store => '<new store name>', \n\
-                          query => 'SQL query from which the store is made.', \n\
-                          prompt => '<natural language prompt>' )\n\n" \
-"(ii) pg_ai_query_vector_store(store => '<new store name>', \n\
-                            prompt => '<natural language prompt>', \n\
-                            count => <count of records to fetch>')\n"
+"(ii) pg_ai_create_vector_store(store     => '<new store name>', \n\
+                                sql_query => 'SQL query from which the store is made.', \n\
+                                prompt    => '<natural language prompt>' )\n\n" \
+"(ii) pg_ai_query_vector_store(store    => '<new store name>', \n\
+                               nl_query => '<natural language prompt>', \n\
+                               count    => <count of records to fetch>')\n"
 
 #define SQL_QUERY_MAX_LENGTH 256*1024
 /*  seems const - TODO */

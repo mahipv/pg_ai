@@ -28,7 +28,6 @@ define_options(AIService * ai_service)
 					  OPTION_INSIGHT_COLUMN_DESC, 0 /* guc */ , 0 /* required */ , true /* help_display */ );
 	define_new_option(&(service_data->options), OPTION_SERVICE_API_KEY,
 					  OPTION_SERVICE_API_KEY_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
-
 }
 
 /*
@@ -48,13 +47,12 @@ moderation_init_service_options(void *service)
 
 	service_data = (ServiceData *) palloc0(sizeof(ServiceData));
 	ai_service->service_data = service_data;
-
-	/* set the defaults */
+	/* Define the options for this service */
 	define_options(ai_service);
 
 	/*
-	 * unused options but need to be there for help and when multiple services
-	 * and models are supported
+	 * Currently unused, Useful when multiple services and models are
+	 * supported.
 	 */
 	set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, get_service_name(ai_service));
 	set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, get_model_name(ai_service));
@@ -88,9 +86,6 @@ moderation_set_and_validate_options(void *service, void *function_options)
 
 	if (!PG_ARGISNULL(0 + arg_offset))
 		set_option_value(ai_service->service_data->options, OPTION_INSIGHT_COLUMN, text_to_cstring(PG_GETARG_TEXT_P(0 + arg_offset)));
-
-	if (get_pg_ai_guc_variable(PG_AI_GUC_API_KEY))
-		set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, get_pg_ai_guc_variable(PG_AI_GUC_API_KEY));
 
 	/* check if all required args are set */
 	options = ai_service->service_data->options;

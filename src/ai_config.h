@@ -72,22 +72,22 @@
 #define OPTION_SERVICE_API_KEY_DESC "API Key value from the service provider."
 
 #define OPTION_INSIGHT_COLUMN "textcolumn"
-#define OPTION_INSIGHT_COLUMN_DESC "The column to be used for insights."
+#define OPTION_INSIGHT_COLUMN_DESC "The input column to the LLM."
 
 #define OPTION_SERVICE_PROMPT "prompt"
 #define OPTION_SERVICE_PROMPT_DESC "The string to be used as input to the LLM."
 
 #define OPTION_SERVICE_PROMPT_AGG "promptagg"
-#define OPTION_SERVICE_PROMPT_AGG_DESC "The prompt used for the get_insight_agg() function."
+#define OPTION_SERVICE_PROMPT_AGG_DESC "The prompt used for the aggregate function."
 
-#define OPTION_STORE_NAME "store_name"
-#define OPTION_STORE_NAME_DESC "Table name having the materialised data."
+#define OPTION_STORE_NAME "store"
+#define OPTION_STORE_NAME_DESC "Table name having the materialised data and vectors."
 
-#define OPTION_SQL_QUERY "query"
-#define OPTION_SQL_QUERY_DESC "The SQL query(syntactically correct) to materialize."
+#define OPTION_SQL_QUERY "sql_query"
+#define OPTION_SQL_QUERY_DESC "SQL query(syntactically correct) to materialize."
 
-#define OPTION_NL_QUERY "prompt"
-#define OPTION_NL_QUERY_DESC "Prompt(natural language) to fetch matching data in the store."
+#define OPTION_NL_QUERY "nl_query"
+#define OPTION_NL_QUERY_DESC "Natural language query to fetch data from the vector store."
 
 #define OPTION_RECORD_COUNT "limit"
 #define OPTION_RECORD_COUNT_DESC "No of records to display.(default: 2)"
