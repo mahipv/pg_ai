@@ -140,6 +140,7 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 	char		service_description[PG_AI_DESC_LENGTH];
 	char		model_name[PG_AI_NAME_LENGTH];
 	char		model_description[PG_AI_DESC_LENGTH];
+	char		model_url[SERVICE_DATA_SIZE];
 
 	if (service_flags & SERVICE_OPENAI)
 	{
@@ -150,6 +151,7 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 			return_value = initialize_gpt(ai_service);
 			strcpy(model_name, MODEL_OPENAI_GPT_NAME);
 			strcpy(model_description, MODEL_OPENAI_GPT_DESCRIPTION);
+			strcpy(model_url, GPT_API_URL);
 		}
 
 		if (model_flags & MODEL_OPENAI_EMBEDDINGS)
@@ -157,6 +159,7 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 			return_value = initialize_embeddings(ai_service);
 			strcpy(model_name, MODEL_OPENAI_EMBEDDINGS_NAME);
 			strcpy(model_description, MODEL_OPENAI_EMBEDDINGS_DESCRIPTION);
+			strcpy(model_url, EMBEDDINGS_API_URL);
 		}
 
 		if (model_flags & MODEL_OPENAI_MODERATION)
@@ -164,6 +167,7 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 			return_value = initialize_moderation(ai_service);
 			strcpy(model_name, MODEL_OPENAI_MODERATION_NAME);
 			strcpy(model_description, MODEL_OPENAI_MODERATION_DESCRIPTION);
+			strcpy(model_url, MODERATION_API_URL);
 		}
 
 		if (model_flags & MODEL_OPENAI_IMAGE_GEN)
@@ -171,6 +175,7 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 			return_value = initialize_image_generator(ai_service);
 			strcpy(model_name, MODEL_OPENAI_IMAGE_GEN_NAME);
 			strcpy(model_description, MODEL_OPENAI_IMAGE_GEN_DESCRIPTION);
+			strcpy(model_url, IMAGE_GEN_API_URL);
 		}
 	}
 
@@ -185,22 +190,15 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 		/* initialize service data and define options for the service */
 		(ai_service->init_service_options) (ai_service);
 		/* initialize the service & model data */
-		strcpy(ai_service->service_data->name, service_name);
-		strcpy(ai_service->service_data->name_description, service_description);
-		strcpy(ai_service->service_data->model, model_name);
+		strcpy(ai_service->service_data->service_description, service_description);
 		strcpy(ai_service->service_data->model_description, model_description);
 
 		if (get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY))
 			set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY));
-
-		/*
-		 * Currently unused, Useful when multiple services and models are
-		 * supported.
-		 */
-		set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, get_service_name(ai_service));
-		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, get_model_name(ai_service));
+		set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, service_name);
+		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, model_name);
+		set_option_value(ai_service->service_data->options, OPTION_ENDPOINT_URL, model_url);
 	}
-
 	return return_value;
 }
 
@@ -214,7 +212,7 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 const char *
 get_service_name(const AIService * ai_service)
 {
-	return (ai_service->service_data->name);
+	return (get_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME));
 }
 
 /*
@@ -227,20 +225,13 @@ get_service_name(const AIService * ai_service)
 const char *
 get_model_name(const AIService * ai_service)
 {
-	return (ai_service->service_data->model);
+	return (get_option_value(ai_service->service_data->options, OPTION_MODEL_NAME));
 }
 
-/*
- * Generic callback to return the AI service description.
- *
- * @param[in]	ai_service	Pointer to the initialized AIService
- * @return		pointer too the AI service description
- *
- */
 const char *
 get_service_description(const AIService * ai_service)
 {
-	return (ai_service->service_data->name_description);
+	return (ai_service->service_data->service_description);
 }
 
 const char *

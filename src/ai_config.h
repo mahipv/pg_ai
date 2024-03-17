@@ -107,6 +107,9 @@
 
 #define OPTION_MATCHING_ALGORITHM "algorithm"
 #define OPTION_MATCHING_ALGORITHM_DESC "Vector matching algorithm.(default/supported: cosine_similarity)"
+
+#define OPTION_ENDPOINT_URL "endpoint_url"
+#define OPTION_ENDPOINT_URL_DESC "URL for the Rest API endpoint."
 /* ---------------------Function Arguments -->8------ */
 
 #endif							/* _AI_CONFIG_H_ */

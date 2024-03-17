@@ -162,7 +162,7 @@ make_curl_headers(CURL * curl, AIService * ai_service)
 {
 	struct curl_slist *headers = NULL;
 
-	curl_easy_setopt(curl, CURLOPT_URL, ai_service->service_data->url);
+	curl_easy_setopt(curl, CURLOPT_URL, get_option_value(ai_service->service_data->options, OPTION_ENDPOINT_URL));
 
 	/* TODO Assert */
 	if (ai_service->add_service_headers)

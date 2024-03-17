@@ -34,12 +34,8 @@ typedef struct RestResponseData
  */
 typedef struct ServiceData
 {
-	char		name[PG_AI_NAME_LENGTH];
-	char		name_description[PG_AI_DESC_LENGTH];
-	char		model[PG_AI_NAME_LENGTH];
+	char		service_description[PG_AI_DESC_LENGTH];
 	char		model_description[PG_AI_DESC_LENGTH];
-	char		url[SERVICE_DATA_SIZE];
-	char		key[SERVICE_DATA_SIZE];
 	char		request[SERVICE_MAX_RESPONSE_SIZE];
 	size_t		max_request_size;
 	char		prompt[SERVICE_DATA_SIZE];

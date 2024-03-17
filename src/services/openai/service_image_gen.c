@@ -26,6 +26,8 @@ define_options(AIService * ai_service)
 					  OPTION_SERVICE_NAME_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
 	define_new_option(&(service_data->options), OPTION_MODEL_NAME,
 					  OPTION_MODEL_NAME_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
+	define_new_option(&(service_data->options), OPTION_ENDPOINT_URL,
+					  OPTION_ENDPOINT_URL_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
 	define_new_option(&(service_data->options), OPTION_INSIGHT_COLUMN,
 					  OPTION_INSIGHT_COLUMN_DESC, 0 /* guc */ , 0 /* required */ , true /* help_display */ );
 	define_new_option(&(service_data->options), OPTION_SERVICE_API_KEY,
@@ -57,13 +59,6 @@ image_gen_init_service_options(void *service)
 	ai_service->service_data = service_data;
 	/* Define the options for this service */
 	define_options(ai_service);
-
-	/*
-	 * Currently unused, Useful when multiple services and models are
-	 * supported.
-	 */
-	set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, get_service_name(ai_service));
-	set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, get_model_name(ai_service));
 }
 
 /*
@@ -191,10 +186,6 @@ image_gen_init_service_data(void *options, void *service, void *data)
 	service_data->max_response_size = SERVICE_MAX_REQUEST_SIZE;
 
 	/* print_service_options(service_data->options, 1); */
-
-	/* TODO convert all these to the options to be read from the option file */
-	/* initialize data partly here */
-	strcpy(service_data->url, IMAGE_GEN_API_URL);
 
 	if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE)
 		strcpy(service_data->request, get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT));

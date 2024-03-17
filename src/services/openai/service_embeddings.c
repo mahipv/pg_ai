@@ -26,6 +26,8 @@ define_options(AIService * ai_service)
 					  OPTION_SERVICE_NAME_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
 	define_new_option(&(service_data->options), OPTION_MODEL_NAME,
 					  OPTION_MODEL_NAME_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
+	define_new_option(&(service_data->options), OPTION_ENDPOINT_URL,
+					  OPTION_ENDPOINT_URL_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
 	define_new_option(&(service_data->options), OPTION_SERVICE_API_KEY,
 					  OPTION_SERVICE_API_KEY_DESC, 1 /* guc_option */ , 1 /* required */ , false /* help_display */ );
 	define_new_option(&(service_data->options), OPTION_STORE_NAME,
@@ -69,13 +71,6 @@ embeddings_init_service_options(void *service)
 	ai_service->service_data = service_data;
 	/* Define the options for this service */
 	define_options(ai_service);
-
-	/*
-	 * Currently unused, Useful when multiple services and models are
-	 * supported.
-	 */
-	set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, get_service_name(ai_service));
-	set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, get_model_name(ai_service));
 }
 
 /*
@@ -182,10 +177,6 @@ embeddings_init_service_data(void *options, void *service, void *file_path)
 	service_data = ai_service->service_data;
 	service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
 	service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
-
-	/* TODO convert all these to the options to be read from the option file */
-	/* initialize data partly here */
-	strcpy(service_data->url, EMBEDDINGS_API_URL);
 
 	/* embeddings use pg_vector extension */
 	if (!is_extension_installed(PG_EXTENSION_PG_VECTOR))
