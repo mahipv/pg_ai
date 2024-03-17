@@ -14,8 +14,6 @@ PG_FUNCTION_INFO_V1(pg_ai_moderation);
 Datum
 pg_ai_moderation(PG_FUNCTION_ARGS)
 {
-	NameData	service_name;
-	NameData	model_name;
 	AIService  *ai_service;
 	int			return_value;
 	MemoryContext func_context;
@@ -35,13 +33,8 @@ pg_ai_moderation(PG_FUNCTION_ARGS)
 	ai_service->memory_context = func_context;
 	MemoryContextSwitchTo(old_context);
 
-	/* default service an model */
-	/* TODO: get the service and model from the guc */
-	strcpy(service_name.data, SERVICE_OPENAI);
-	strcpy(model_name.data, MODEL_OPENAI_MODERATION);
-
 	ai_service->function_flags |= FUNCTION_MODERATION;
-	return_value = initialize_service(NameStr(service_name), NameStr(model_name), ai_service);
+	return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_MODERATION, ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
@@ -91,8 +84,6 @@ pg_ai_moderation_agg_transfn(PG_FUNCTION_ARGS)
 	MemoryContext agg_context;
 	MemoryContext old_context;
 	AggStateStruct *state_struct;
-	NameData	service_name;
-	NameData	model_name;
 	int			return_value;
 
 	if (!AggCheckCallContext(fcinfo, &agg_context))
@@ -113,13 +104,8 @@ pg_ai_moderation_agg_transfn(PG_FUNCTION_ARGS)
 		*state_struct->column_data = '\0';
 		state_struct->ai_service = (AIService *) palloc0(sizeof(AIService));
 
-		/* default service an model */
-		/* TODO: get the service and model from the guc */
-		strcpy(service_name.data, SERVICE_OPENAI);
-		strcpy(model_name.data, MODEL_OPENAI_MODERATION);
-
 		state_struct->ai_service->function_flags |= FUNCTION_MODERATION_AGGREGATE;
-		return_value = initialize_service(NameStr(service_name), NameStr(model_name), state_struct->ai_service);
+		return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_MODERATION, state_struct->ai_service);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 

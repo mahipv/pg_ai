@@ -82,11 +82,12 @@ Model versions in use.
 
 ## TODO
 
-* Implement parallelization and background loading of embedding vectors.
-* Enhance support for curl read callbacks.
-* Tokenization mechanism for larger data.
-* Expand compatibility for other vector similarity algorithms & support vector indexes.
-* Integration with additional local and remote LLMs.
+* Develop parallelization framework for loading embedding vectors in the background.
+* Improve curl read callbacks and add tokenization support to handle longer context data.
+* Enable customization to utilize alternative local and remote LLMs.
+* Separate storage layer to enable the creation and querying of remote vector stores,(object stores/dbs, file-based storage).
+* Increase compatibility with additional vector similarity algorithms and explore new vector index type (HNTW).
+* Introduce the extension catalog.
 
 ## Disclaimer
 

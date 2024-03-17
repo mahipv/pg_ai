@@ -3,7 +3,7 @@
 
 /* -----------------8< gpt---------- */
 /* "instruct" is better at answering pointed questions and "gpt" in general is chatty */
-#define  MODEL_OPENAI_GPT "gpt-3.5-turbo-instruct"
+#define  MODEL_OPENAI_GPT_NAME "gpt-3.5-turbo-instruct"
 #define  MODEL_OPENAI_GPT_DESCRIPTION "GPT Model for answering pointed questions."
 
 #define GPT_API_URL "https://api.openai.com/v1/completions"
@@ -22,7 +22,7 @@
 
 
 /* -----------------8< embeddings ---------- */
-#define  MODEL_OPENAI_EMBEDDINGS "ada"
+#define  MODEL_OPENAI_EMBEDDINGS_NAME "ada"
 #define  MODEL_OPENAI_EMBEDDINGS_DESCRIPTION "OpenAI's embeddings model(vectors)"
 
 #define EMBEDDINGS_API_URL "https://api.openai.com/v1/embeddings"
@@ -51,7 +51,7 @@
 /* ----------------- embeddings >8---------- */
 
 /*--------------8< Image Gen --------------*/
-#define  MODEL_OPENAI_IMAGE_GEN "dall-e2"
+#define  MODEL_OPENAI_IMAGE_GEN_NAME "dall-e-3"
 #define  MODEL_OPENAI_IMAGE_GEN_DESCRIPTION "OpenAI's text-to-image model"
 #define IMAGE_GEN_AGG_PROMPT "Make a picture with the following"
 #define IMAGE_GEN_PROMPT "Make a picture with the following"
@@ -70,8 +70,8 @@
 
 /* -----------------8< moderation ---------- */
 /* "instruct" is better at answering pointed questions and "gpt" in general is chatty */
-#define  MODEL_OPENAI_MODERATION "text-moderation-latest"
-#define  MODEL_OPENAI_MODERATION_DESCRIPTION "Classifies input as potentially harmful across several categories."
+#define  MODEL_OPENAI_MODERATION_NAME "text-moderation-latest"
+#define  MODEL_OPENAI_MODERATION_DESCRIPTION "Classifies input on harmful categories."
 
 #define MODERATION_API_URL "https://api.openai.com/v1/moderations"
 

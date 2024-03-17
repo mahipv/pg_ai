@@ -3,17 +3,6 @@
 #include <utils/builtins.h>
 #include "ai_service.h"
 
-/* supported services and models */
-char	   *ai_services[] = {SERVICE_OPENAI, NULL};
-char	   *open_ai_models[] = {
-	MODEL_OPENAI_GPT,
-	MODEL_OPENAI_EMBEDDINGS,
-	MODEL_OPENAI_MODERATION,
-	MODEL_OPENAI_IMAGE_GEN,
-	NULL
-};
-
-
 /*
  * Implementation of SQL FUNCTION pg_ai_help().
  */
@@ -27,41 +16,45 @@ pg_ai_help(PG_FUNCTION_ARGS)
 	int			return_value = 0;
 	char	   *help_text;
 	char	   *service_options;
-	MemoryContext 	help_context;
-	
+	int			service_flags = 0;
+	int			model_flags = 0;
+	bool		all_services_done = false;
+	int			count = 1;
+	MemoryContext help_context;
+
 	/* Create a new memory context for the help text */
 	help_context = AllocSetContextCreate(CurrentMemoryContext,
-										"AI Help Context",
-										ALLOCSET_DEFAULT_SIZES);
+										 "AI Help Context",
+										 ALLOCSET_DEFAULT_SIZES);
 	ai_service->memory_context = help_context;
-	
-	for (int i = 0; ai_services[i] != NULL; i++)
+
+	/* Loop through all the services and models and initialize them */
+	service_flags = 0x1;
+	model_flags = 0x1;
+
+	while (!all_services_done)
 	{
-		char	  **models = NULL;
-
-		if (!strcmp(ai_services[i], SERVICE_OPENAI))
-			models = open_ai_models;
-
-		for (int j = 0; models && models[j] != NULL; j++)
+		model_flags = 0x1;
+		while (model_flags)
 		{
-			/* set all function falgs to define all options and can be displayed */
+			/*
+			 * set all function falgs to define all options and can be
+			 * displayed
+			 */
 			ai_service->function_flags |= ~0;
-
-			return_value = initialize_service(ai_services[i], models[j], ai_service);
+			return_value = initialize_service(service_flags, model_flags, ai_service);
+			/* if no models are supported then this service beyond last */
 			if (return_value)
 			{
-				pfree(ai_service);
-				pfree(display_string);
-				if (ai_service->memory_context)
-					MemoryContextDelete(ai_service->memory_context);
-				PG_RETURN_TEXT_P(cstring_to_text("Internal error"));
+				if (model_flags & 0x01)
+					all_services_done = true;
+				break;
 			}
-
 			/* Add the service and model information to the display string */
 			running_length += snprintf(display_string + running_length,
 									   MAX_HELP_TEXT_SIZE - running_length,
 									   "\n\n%c.\nService: %s  Info: %s\nModel: %s  Info: %s\n",
-									   (j + 1 + '0'), ai_service->get_service_name(ai_service),
+									   (count++ + '0'), ai_service->get_service_name(ai_service),
 									   ai_service->get_service_description(ai_service),
 									   ai_service->get_model_name(ai_service),
 									   ai_service->get_model_description(ai_service));
@@ -79,7 +72,9 @@ pg_ai_help(PG_FUNCTION_ARGS)
 									   MAX_HELP_TEXT_SIZE - running_length,
 									   "\nParameters: %s\n\n", service_options);
 			pfree(service_options);
+			model_flags = model_flags << 1;
 		}
+		service_flags = service_flags << 1;
 	}
 	if (ai_service->memory_context)
 		MemoryContextDelete(ai_service->memory_context);

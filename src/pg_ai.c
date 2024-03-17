@@ -38,13 +38,11 @@ PG_FUNCTION_INFO_V1(pg_ai_insight);
 Datum
 pg_ai_insight(PG_FUNCTION_ARGS)
 {
-	NameData		service_name;
-	NameData		model_name;
-	AIService  		*ai_service;
-	int				return_value;
-	MemoryContext 	func_context;
-	MemoryContext	old_context;
-	text			*return_text;
+	AIService  *ai_service;
+	int			return_value;
+	MemoryContext func_context;
+	MemoryContext old_context;
+	text	   *return_text;
 
 	/* check for the column name whose value is to be interpreted */
 	if (PG_ARGISNULL(0))
@@ -59,13 +57,9 @@ pg_ai_insight(PG_FUNCTION_ARGS)
 	ai_service->memory_context = func_context;
 	MemoryContextSwitchTo(old_context);
 
-	/* default service an model */
-	/* TODO: get the service and model from the guc */
-	strcpy(service_name.data, SERVICE_OPENAI);
-	strcpy(model_name.data, MODEL_OPENAI_GPT);
-
 	ai_service->function_flags |= FUNCTION_GET_INSIGHT;
-	return_value = initialize_service(NameStr(service_name), NameStr(model_name), ai_service);
+	/* get these settings from guc */
+	return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_GPT, ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
@@ -100,7 +94,7 @@ typedef struct AggStateStruct
 	AIService  *ai_service;
 	char		column_data[16 * 1024];
 	char	   *param_file_path;
-}AggStateStruct;
+}			AggStateStruct;
 
 /*
  * The implementation of the aggregate transfer function, called once per
@@ -112,12 +106,10 @@ PG_FUNCTION_INFO_V1(pg_ai_insight_agg_transfn);
 Datum
 pg_ai_insight_agg_transfn(PG_FUNCTION_ARGS)
 {
-	MemoryContext	agg_context;
-	MemoryContext	old_context;
+	MemoryContext agg_context;
+	MemoryContext old_context;
 	AggStateStruct *state_struct;
-	NameData		service_name;
-	NameData		model_name;
-	int				return_value;
+	int			return_value;
 
 	if (!AggCheckCallContext(fcinfo, &agg_context))
 		ereport(ERROR,
@@ -137,13 +129,9 @@ pg_ai_insight_agg_transfn(PG_FUNCTION_ARGS)
 		*state_struct->column_data = '\0';
 		state_struct->ai_service = (AIService *) palloc0(sizeof(AIService));
 
-		/* default service an model */
-		/* TODO: get the service and model from the guc */
-		strcpy(service_name.data, SERVICE_OPENAI);
-		strcpy(model_name.data, MODEL_OPENAI_GPT);
-
 		state_struct->ai_service->function_flags |= FUNCTION_GET_INSIGHT_AGGREGATE;
-		return_value = initialize_service(NameStr(service_name), NameStr(model_name), state_struct->ai_service);
+		/* get these settings from guc */
+		return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_GPT, state_struct->ai_service);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
@@ -222,12 +210,10 @@ PG_FUNCTION_INFO_V1(pg_ai_create_vector_store);
 Datum
 pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 {
-	AIService		*ai_service;
-	MemoryContext	func_context;
-	MemoryContext	old_context;
-	int				return_value;
-	NameData		service_name;
-	NameData		model_name;
+	AIService  *ai_service;
+	MemoryContext func_context;
+	MemoryContext old_context;
+	int			return_value;
 
 	func_context = AllocSetContextCreate(CurrentMemoryContext,
 										 "ai functions context",
@@ -240,11 +226,8 @@ pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 		ereport(FATAL,
 				(errmsg("Incorrect parameters cannot proceed.\n")));
 
-	strcpy(service_name.data, SERVICE_OPENAI);
-	strcpy(model_name.data, MODEL_OPENAI_EMBEDDINGS);
 	ai_service->function_flags |= FUNCTION_CREATE_VECTOR_STORE;
-
-	return_value = initialize_service(NameStr(service_name), NameStr(model_name), ai_service);
+	return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_EMBEDDINGS, ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
@@ -270,33 +253,31 @@ pg_ai_create_vector_store(PG_FUNCTION_ARGS)
  */
 typedef struct srf_query_data
 {
-	int				current_row;
-	int				max_rows;
-	bool			print_header_info;
-	SPITupleTable	*tuble_table;
-}srf_query_data;
+	int			current_row;
+	int			max_rows;
+	bool		print_header_info;
+	SPITupleTable *tuble_table;
+}			srf_query_data;
 
 PG_FUNCTION_INFO_V1(pg_ai_query_vector_store);
 Datum
 pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 {
-	FuncCallContext		*funcctx;
-	MemoryContext		oldcontext;
-	srf_query_data		*query_data;
-	Datum				result;
-	char				*query_string;
-	uint32_t			spi_result;
-	int					i;
-	int					col_count;
-	HeapTuple			tuple;
-	StringInfo			header;
-	AIService			*ai_service;
-	int					return_value;
-	char				pk_col[COLUMN_NAME_LEN];
-	char				*hide_cols[] = {EMBEDDINGS_COLUMN_NAME, EMBEDDINGS_COSINE_SIMILARITY, pk_col};
-	int					hide_col_count = sizeof(hide_cols) / sizeof(hide_cols[0]);
-	NameData			service_name;
-	NameData			model_name;
+	FuncCallContext *funcctx;
+	MemoryContext oldcontext;
+	srf_query_data *query_data;
+	Datum		result;
+	char	   *query_string;
+	uint32_t	spi_result;
+	int			i;
+	int			col_count;
+	HeapTuple	tuple;
+	StringInfo	header;
+	AIService  *ai_service;
+	int			return_value;
+	char		pk_col[COLUMN_NAME_LEN];
+	char	   *hide_cols[] = {EMBEDDINGS_COLUMN_NAME, EMBEDDINGS_COSINE_SIMILARITY, pk_col};
+	int			hide_col_count = sizeof(hide_cols) / sizeof(hide_cols[0]);
 
 	if (SRF_IS_FIRSTCALL())
 	{
@@ -308,12 +289,10 @@ pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 		/* make the reset call to get the embeddings and the corresponding sql */
 		ai_service = palloc0(sizeof(AIService));
 
-		strcpy(service_name.data, SERVICE_OPENAI);
-		strcpy(model_name.data, MODEL_OPENAI_EMBEDDINGS);
-		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
 
+		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
 		/* initialize based on the service and model */
-		return_value = initialize_service(NameStr(service_name), NameStr(model_name), ai_service);
+		return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_EMBEDDINGS, ai_service);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 

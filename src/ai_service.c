@@ -133,37 +133,44 @@ initialize_moderation(AIService * ai_service)
  *
  */
 int
-initialize_service(const char *service_name, const char *model_name, AIService * ai_service)
+initialize_service(const int service_flags, const int model_flags, AIService * ai_service)
 {
 	int			return_value = RETURN_ERROR;
+	char		service_name[PG_AI_NAME_LENGTH];
 	char		service_description[PG_AI_DESC_LENGTH];
+	char		model_name[PG_AI_NAME_LENGTH];
 	char		model_description[PG_AI_DESC_LENGTH];
 
-	if (!strcmp(SERVICE_OPENAI, service_name))
+	if (service_flags & SERVICE_OPENAI)
 	{
+		strcpy(service_name, SERVICE_OPENAI_NAME);
 		strcpy(service_description, SERVICE_OPENAI_DESCRIPTION);
-		if (!strcmp(MODEL_OPENAI_GPT, model_name))
+		if (model_flags & MODEL_OPENAI_GPT)
 		{
 			return_value = initialize_gpt(ai_service);
+			strcpy(model_name, MODEL_OPENAI_GPT_NAME);
 			strcpy(model_description, MODEL_OPENAI_GPT_DESCRIPTION);
 		}
 
-		if (!strcmp(MODEL_OPENAI_IMAGE_GEN, model_name))
-		{
-			return_value = initialize_image_generator(ai_service);
-			strcpy(model_description, MODEL_OPENAI_IMAGE_GEN_DESCRIPTION);
-		}
-
-		if (!strcmp(MODEL_OPENAI_EMBEDDINGS, model_name))
+		if (model_flags & MODEL_OPENAI_EMBEDDINGS)
 		{
 			return_value = initialize_embeddings(ai_service);
+			strcpy(model_name, MODEL_OPENAI_EMBEDDINGS_NAME);
 			strcpy(model_description, MODEL_OPENAI_EMBEDDINGS_DESCRIPTION);
 		}
 
-		if (!strcmp(MODEL_OPENAI_MODERATION, model_name))
+		if (model_flags & MODEL_OPENAI_MODERATION)
 		{
 			return_value = initialize_moderation(ai_service);
-			strcpy(model_description, MODEL_OPENAI_EMBEDDINGS_DESCRIPTION);
+			strcpy(model_name, MODEL_OPENAI_MODERATION_NAME);
+			strcpy(model_description, MODEL_OPENAI_MODERATION_DESCRIPTION);
+		}
+
+		if (model_flags & MODEL_OPENAI_IMAGE_GEN)
+		{
+			return_value = initialize_image_generator(ai_service);
+			strcpy(model_name, MODEL_OPENAI_IMAGE_GEN_NAME);
+			strcpy(model_description, MODEL_OPENAI_IMAGE_GEN_DESCRIPTION);
 		}
 	}
 

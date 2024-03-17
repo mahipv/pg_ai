@@ -8,7 +8,7 @@
 
 /* supported service providers */
 /*--------------8<--------------*/
-#define  SERVICE_OPENAI "OpenAI"
+#define  SERVICE_OPENAI_NAME "OpenAI"
 #define  SERVICE_OPENAI_DESCRIPTION "Models supported by OpenAI"
 #define  SERVICE_UNSUPPORTED_MSG "Service is not supported."
 /*-------------->8--------------*/
@@ -51,7 +51,18 @@
 
 #define APPROX_WORDS_PER_1K_TOKENS 400
 
-/* every service function has a unique constant */
+
+/*------------8< Services. Models, Functions ----------*/
+/* every supported service */
+#define SERVICE_OPENAI                      0x00000001
+
+/* every supported model */
+#define MODEL_OPENAI_GPT                    0x00000001
+#define MODEL_OPENAI_EMBEDDINGS             0x00000002
+#define MODEL_OPENAI_MODERATION             0x00000004
+#define MODEL_OPENAI_IMAGE_GEN              0x00000008
+
+/* functions are common across services and models */
 #define FUNCTION_GET_INSIGHT                0x00000001
 #define FUNCTION_GET_INSIGHT_AGGREGATE      0x00000002
 #define FUNCTION_GENERATE_IMAGE             0x00000004
@@ -60,6 +71,8 @@
 #define FUNCTION_QUERY_VECTOR_STORE         0x00000020
 #define FUNCTION_MODERATION                 0x00000040
 #define FUNCTION_MODERATION_AGGREGATE       0x00000080
+/*------------ Services. Models, Functions >8----------*/
+
 
 /* -----------------8<--Function Arguments ---------- */
 #define OPTION_SERVICE_NAME "service"

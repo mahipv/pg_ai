@@ -252,11 +252,11 @@ gpt_add_service_headers(CURL * curl, struct curl_slist **headers,
  */
 
 #define GPT_MODEL_KEY			"model"
-#define GPT_PROMPT_KEY 		"prompt"
-#define GPT_MAX_TOKENS_KEY 	"max_tokens"
+#define GPT_PROMPT_KEY 			"prompt"
+#define GPT_MAX_TOKENS_KEY 		"max_tokens"
 #define GPT_MAX_TOKENS_VAUE 	"1024"
-#define JSON_DATA_TYPE_STRING		"string"
-#define JSON_DATA_TYPE_INTEGER		"integer"
+#define JSON_DATA_TYPE_STRING	 "string"
+#define JSON_DATA_TYPE_INTEGER	 "integer"
 
 void
 gpt_post_header_maker(char *buffer, const size_t maxlen,
@@ -264,7 +264,7 @@ gpt_post_header_maker(char *buffer, const size_t maxlen,
 {
 	const char *data_types[] = {JSON_DATA_TYPE_STRING, JSON_DATA_TYPE_STRING, JSON_DATA_TYPE_INTEGER};
 	const char *keys[] = {GPT_MODEL_KEY, GPT_PROMPT_KEY, GPT_MAX_TOKENS_KEY};
-	const char *values[] = {MODEL_OPENAI_GPT, data, GPT_MAX_TOKENS_VAUE};
+	const char *values[] = {MODEL_OPENAI_GPT_NAME, data, GPT_MAX_TOKENS_VAUE};
 
 	generate_json(buffer, keys, values, data_types, 3);
 }

@@ -80,9 +80,10 @@ typedef int (*HandleResponseData) (void *service, void *user_data);
 typedef struct AIService
 {
 	/*
-	 * int representation of name and model easier/faster to use than a
-	 * strings
+	 * TODO int representation of name and model easier/faster to use than a
 	 */
+	int			service_flags;
+	int			model_flags;
 	int			function_flags;
 	/* PG <-> AIService Interactions - helpers */
 	GetServiceName get_service_name;
@@ -109,7 +110,7 @@ typedef struct AIService
 }			AIService;
 
 void		reset_service(AIService * ai_service);
-int			initialize_service(const char *service_name, const char *model_name, AIService * ai_service);
+int			initialize_service(const int service_flags, const int model_flags, AIService * ai_service);
 const char *get_service_name(const AIService * ai_service);
 const char *get_service_description(const AIService * ai_service);
 const char *get_model_name(const AIService * ai_service);
