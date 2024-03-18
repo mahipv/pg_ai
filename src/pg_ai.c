@@ -38,7 +38,7 @@ PG_FUNCTION_INFO_V1(pg_ai_insight);
 Datum
 pg_ai_insight(PG_FUNCTION_ARGS)
 {
-	AIService  *ai_service;
+	AIService  *ai_service = palloc0(sizeof(AIService));
 	int			return_value;
 	MemoryContext func_context;
 	MemoryContext old_context;
@@ -53,9 +53,7 @@ pg_ai_insight(PG_FUNCTION_ARGS)
 										 "ai functions context",
 										 ALLOCSET_DEFAULT_SIZES);
 	old_context = MemoryContextSwitchTo(func_context);
-	ai_service = palloc0(sizeof(AIService));
 	ai_service->memory_context = func_context;
-	MemoryContextSwitchTo(old_context);
 
 	ai_service->function_flags |= FUNCTION_GET_INSIGHT;
 	/* get these settings from guc */
@@ -79,12 +77,11 @@ pg_ai_insight(PG_FUNCTION_ARGS)
 	/* call the transfer */
 	(ai_service->rest_transfer) (ai_service);
 
-	/* copy the return text so that the memory context can be freed */
+	MemoryContextSwitchTo(old_context);
 	return_text = cstring_to_text((char *) (ai_service->rest_response->data));
-
 	if (ai_service->memory_context)
 		MemoryContextDelete(ai_service->memory_context);
-
+	pfree(ai_service);
 	PG_RETURN_TEXT_P(return_text);
 }
 

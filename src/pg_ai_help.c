@@ -16,8 +16,8 @@ pg_ai_help(PG_FUNCTION_ARGS)
 	int			return_value = 0;
 	char	   *help_text;
 	char	   *service_options;
-	int			service_flags = 0;
-	int			model_flags = 0;
+	int			service_flags = 0x1;
+	int			model_flags = 0x1;
 	bool		all_services_done = false;
 	int			count = 1;
 	MemoryContext help_context;
@@ -27,27 +27,21 @@ pg_ai_help(PG_FUNCTION_ARGS)
 										 "AI Help Context",
 										 ALLOCSET_DEFAULT_SIZES);
 	ai_service->memory_context = help_context;
-
 	/* Loop through all the services and models and initialize them */
-	service_flags = 0x1;
-	model_flags = 0x1;
-
 	while (!all_services_done)
 	{
 		model_flags = 0x1;
 		while (model_flags)
 		{
-			/*
-			 * set all function falgs to define all options and can be
-			 * displayed
-			 */
+			/* set all function falgs to define and display all options */
 			ai_service->function_flags |= ~0;
 			return_value = initialize_service(service_flags, model_flags, ai_service);
-			/* if no models are supported then this service beyond last */
-			if (return_value)
+			if (return_value)	/* no service */
 			{
+				/* if no models are supported then this service beyond last */
 				if (model_flags & 0x01)
 					all_services_done = true;
+				/* go to next service */
 				break;
 			}
 			/* Add the service and model information to the display string */
@@ -72,9 +66,9 @@ pg_ai_help(PG_FUNCTION_ARGS)
 									   MAX_HELP_TEXT_SIZE - running_length,
 									   "\nParameters: %s\n\n", service_options);
 			pfree(service_options);
-			model_flags = model_flags << 1;
+			model_flags = model_flags << 1; /* next model */
 		}
-		service_flags = service_flags << 1;
+		service_flags = service_flags << 1; /* next service */
 	}
 	if (ai_service->memory_context)
 		MemoryContextDelete(ai_service->memory_context);

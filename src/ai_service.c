@@ -141,6 +141,7 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 	char		model_name[PG_AI_NAME_LENGTH];
 	char		model_description[PG_AI_DESC_LENGTH];
 	char		model_url[SERVICE_DATA_SIZE];
+	char	   *api_key;
 
 	if (service_flags & SERVICE_OPENAI)
 	{
@@ -189,15 +190,16 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 		ai_service->get_model_description = get_model_description;
 		/* initialize service data and define options for the service */
 		(ai_service->init_service_options) (ai_service);
-		/* initialize the service & model data */
+
+		/* set the constant model specific info and options */
 		strcpy(ai_service->service_data->service_description, service_description);
 		strcpy(ai_service->service_data->model_description, model_description);
-
-		if (get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY))
-			set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY));
 		set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, service_name);
 		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, model_name);
 		set_option_value(ai_service->service_data->options, OPTION_ENDPOINT_URL, model_url);
+		api_key = get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY);
+		if (api_key)
+			set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, api_key);
 	}
 	return return_value;
 }

@@ -14,9 +14,8 @@ typedef struct ServiceOption
 	int			guc_option;
 	int			required;
 	bool		is_set;
-	bool 		help_display;
+	bool		help_display;
 	struct ServiceOption *next;
-	struct ServiceOption *prev;
 }			ServiceOption;
 
 void		define_new_option(ServiceOption * *option_list, const char *name,

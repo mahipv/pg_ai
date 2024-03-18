@@ -22,7 +22,7 @@ cd pg_ai
 make install
 ```
 - pg_ai uses libcurl for communication with the AI services, make sure the curl is installed.
-- uses the [pgvector](https://github.com/pgvector/pgvector) extension for vector operations, needs to be installed for vector operations.
+- uses the [pgvector](https://github.com/pgvector/pgvector) extension for vector operations.
 
 
 ## Getting Started

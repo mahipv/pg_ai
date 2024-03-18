@@ -31,7 +31,7 @@ define_new_option(ServiceOption * *option_list, const char *name, char *descript
 				  const int guc_option, const int required, bool help_display)
 {
 
-	ServiceOption *last_node = *option_list;
+	ServiceOption *header = *option_list;
 	ServiceOption *new_node = get_new_node();
 
 	strncpy(new_node->name, name, OPTION_NAME_LEN);
@@ -40,20 +40,10 @@ define_new_option(ServiceOption * *option_list, const char *name, char *descript
 	new_node->required = required;
 	new_node->is_set = false;
 	new_node->help_display = help_display;
-	
-	while (last_node && last_node->next != NULL)
-		last_node = last_node->next;
 
-	if (!last_node)
-	{
-		/* first node */
-		*option_list = new_node;
-	}
-	else
-	{
-		last_node->next = new_node;
-		new_node->prev = last_node;
-	}
+	*option_list = new_node;
+	if (header)
+		new_node->next = header;
 }
 
 /*
