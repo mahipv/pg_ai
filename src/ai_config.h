@@ -13,6 +13,65 @@
 #define  SERVICE_UNSUPPORTED_MSG "Service is not supported."
 /*-------------->8--------------*/
 
+/*------------8< Services. Models, Functions ----------*/
+/* every supported service */
+#define SERVICE_OPENAI                      0x00000001
+
+/* every supported model */
+#define MODEL_OPENAI_GPT                    0x00000001
+#define MODEL_OPENAI_EMBEDDINGS             0x00000002
+#define MODEL_OPENAI_MODERATION             0x00000004
+#define MODEL_OPENAI_IMAGE_GEN              0x00000008
+
+/* functions are common across services and models */
+#define FUNCTION_GET_INSIGHT                0x00000001
+#define FUNCTION_GET_INSIGHT_AGGREGATE      0x00000002
+#define FUNCTION_GENERATE_IMAGE             0x00000004
+#define FUNCTION_GENERATE_IMAGE_AGGREGATE   0x00000008
+#define FUNCTION_CREATE_VECTOR_STORE        0x00000010
+#define FUNCTION_QUERY_VECTOR_STORE         0x00000020
+#define FUNCTION_MODERATION                 0x00000040
+#define FUNCTION_MODERATION_AGGREGATE       0x00000080
+/*------------ Services. Models, Functions >8----------*/
+
+/* -----------------8<--Function Arguments ---------- */
+#define OPTION_SERVICE_NAME "service"
+#define OPTION_SERVICE_NAME_DESC "The name of the AI service."
+
+#define OPTION_MODEL_NAME "model"
+#define OPTION_MODEL_NAME_DESC "The name of the model to be used."
+
+#define OPTION_SERVICE_API_KEY "key"
+#define OPTION_SERVICE_API_KEY_DESC "API Key value from the service provider."
+
+#define OPTION_COLUMN_VALUE "textcolumn"
+#define OPTION_COLUMN_VALUE_DESC "The input column to the LLM."
+
+#define OPTION_SERVICE_PROMPT "prompt"
+#define OPTION_SERVICE_PROMPT_DESC "Text to be used as input to the LLM."
+
+#define OPTION_SERVICE_PROMPT_AGG "promptagg"
+#define OPTION_SERVICE_PROMPT_AGG_DESC "The prompt used for the aggregate function."
+
+#define OPTION_STORE_NAME "store"
+#define OPTION_STORE_NAME_DESC "Table name, will contain the query result set and vectors."
+
+#define OPTION_SQL_QUERY "sql_query"
+#define OPTION_SQL_QUERY_DESC "SQL query to materialize."
+
+#define OPTION_NL_QUERY "nl_query"
+#define OPTION_NL_QUERY_DESC "Natural language query to fetch data from the vector store."
+
+#define OPTION_RECORD_COUNT "count"
+#define OPTION_RECORD_COUNT_DESC "No of records to display.(default: 2)"
+
+#define OPTION_MATCHING_ALGORITHM "algorithm"
+#define OPTION_MATCHING_ALGORITHM_DESC "Vector matching algorithm.(default/supported: cosine_similarity)"
+
+#define OPTION_ENDPOINT_URL "endpoint_url"
+#define OPTION_ENDPOINT_URL_DESC "URL for the Rest API endpoint."
+/* ---------------------Function Arguments -->8------ */
+
 /* buffer sizes */
 #define SERVICE_MAX_REQUEST_SIZE (1 * 1024 * 1024)
 #define SERVICE_MAX_RESPONSE_SIZE (1 * 1024 * 1024)
@@ -51,65 +110,5 @@
 
 #define APPROX_WORDS_PER_1K_TOKENS 400
 
-
-/*------------8< Services. Models, Functions ----------*/
-/* every supported service */
-#define SERVICE_OPENAI                      0x00000001
-
-/* every supported model */
-#define MODEL_OPENAI_GPT                    0x00000001
-#define MODEL_OPENAI_EMBEDDINGS             0x00000002
-#define MODEL_OPENAI_MODERATION             0x00000004
-#define MODEL_OPENAI_IMAGE_GEN              0x00000008
-
-/* functions are common across services and models */
-#define FUNCTION_GET_INSIGHT                0x00000001
-#define FUNCTION_GET_INSIGHT_AGGREGATE      0x00000002
-#define FUNCTION_GENERATE_IMAGE             0x00000004
-#define FUNCTION_GENERATE_IMAGE_AGGREGATE   0x00000008
-#define FUNCTION_CREATE_VECTOR_STORE        0x00000010
-#define FUNCTION_QUERY_VECTOR_STORE         0x00000020
-#define FUNCTION_MODERATION                 0x00000040
-#define FUNCTION_MODERATION_AGGREGATE       0x00000080
-/*------------ Services. Models, Functions >8----------*/
-
-
-/* -----------------8<--Function Arguments ---------- */
-#define OPTION_SERVICE_NAME "service"
-#define OPTION_SERVICE_NAME_DESC "The name of the AI service."
-
-#define OPTION_MODEL_NAME "model"
-#define OPTION_MODEL_NAME_DESC "The name of the model to be used."
-
-#define OPTION_SERVICE_API_KEY "key"
-#define OPTION_SERVICE_API_KEY_DESC "API Key value from the service provider."
-
-#define OPTION_INSIGHT_COLUMN "textcolumn"
-#define OPTION_INSIGHT_COLUMN_DESC "The input column to the LLM."
-
-#define OPTION_SERVICE_PROMPT "prompt"
-#define OPTION_SERVICE_PROMPT_DESC "The string to be used as input to the LLM."
-
-#define OPTION_SERVICE_PROMPT_AGG "promptagg"
-#define OPTION_SERVICE_PROMPT_AGG_DESC "The prompt used for the aggregate function."
-
-#define OPTION_STORE_NAME "store"
-#define OPTION_STORE_NAME_DESC "Table name having the materialised data and vectors."
-
-#define OPTION_SQL_QUERY "sql_query"
-#define OPTION_SQL_QUERY_DESC "SQL query(syntactically correct) to materialize."
-
-#define OPTION_NL_QUERY "nl_query"
-#define OPTION_NL_QUERY_DESC "Natural language query to fetch data from the vector store."
-
-#define OPTION_RECORD_COUNT "limit"
-#define OPTION_RECORD_COUNT_DESC "No of records to display.(default: 2)"
-
-#define OPTION_MATCHING_ALGORITHM "algorithm"
-#define OPTION_MATCHING_ALGORITHM_DESC "Vector matching algorithm.(default/supported: cosine_similarity)"
-
-#define OPTION_ENDPOINT_URL "endpoint_url"
-#define OPTION_ENDPOINT_URL_DESC "URL for the Rest API endpoint."
-/* ---------------------Function Arguments -->8------ */
 
 #endif							/* _AI_CONFIG_H_ */

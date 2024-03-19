@@ -24,4 +24,4 @@ void		define_pg_ai_guc_variables(void);
 char	   *get_pg_ai_guc_string_variable(char *name);
 int		   *get_pg_ai_guc_int_variable(char *name);
 
-#endif      /* PG_AI_GUC_H*/
+#endif						/* _PG_AI_GUC_H */

@@ -1,12 +1,9 @@
 #include "service_option.h"
-#include <string.h>
-#include "postgres.h"
+
+#include <postgres.h>
 
 /*
  * Allocate a new ServiceOption node.
- *
- * @return		pointer to the newly created node
- *
  */
 static ServiceOption *
 get_new_node()
@@ -14,21 +11,15 @@ get_new_node()
 	return ((ServiceOption *) palloc0(sizeof(ServiceOption)));
 }
 
+
 /*
  * Function to define a service specific option and add it to the list of
- * options.
- *
- * @param[out]	option_list			add a new option to the list
- * @param[in]	name				name of the new option to be defined
- * @param[in]	description			brief description of the option showed in help
- * @param[in]	guc_option			non-zero if the option is to be read from a GUC
- * @param[in]	required			non-zero if it is a required to set
- * @return		void
- *
+ * options at the front.
  */
 void
-define_new_option(ServiceOption * *option_list, const char *name, char *description,
-				  const int guc_option, const int required, bool help_display)
+define_new_option(ServiceOption * *option_list, const char *name,
+				  char *description, const bool guc_option,
+				  const bool required, const bool help_display)
 {
 
 	ServiceOption *header = *option_list;
@@ -40,32 +31,46 @@ define_new_option(ServiceOption * *option_list, const char *name, char *descript
 	new_node->required = required;
 	new_node->is_set = false;
 	new_node->help_display = help_display;
+	new_node->value_ptr = NULL;
 
 	*option_list = new_node;
 	if (header)
+	{
 		new_node->next = header;
+		header->prev = new_node;
+	}
 }
 
+
 /*
- * Set the value for a particular option
- *
- * @param[in/out]	list			the option list
- * @param[in]		name			name of the new option to be set
- * @param[in]		value			the value that as to be set for the option
- * @return			zero on success, non-zero otherwise
- *
+ * Set the value for a particular option. If value_ptr is NULL, a new memory
+ * is allocated and the value is copied to it. Otherwise, the value_ptr is
+ * used to store the value. data_size is used to check the max length of the
+ * value_ptr.
  */
 int
-set_option_value(ServiceOption * list, const char *name, const char *value)
+set_option_value(ServiceOption * list, const char *name, const char *value,
+				 char *value_ptr, const size_t data_size)
 {
 	ServiceOption *node = list;
 	int			found = 0;
+	size_t		max_len;
 
 	while (node && !found)
 	{
 		if (!strcmp(name, node->name))
 		{
-			strncpy(node->value, value, OPTION_VALUE_LEN);
+			if (value_ptr)
+			{
+				node->value_ptr = value_ptr;
+				max_len = data_size;
+			}
+			else
+			{
+				node->value_ptr = palloc0(OPTION_VALUE_LEN);
+				max_len = OPTION_VALUE_LEN;
+			}
+			strncpy(node->value_ptr, value, max_len);
 			node->is_set = true;
 			found = 1;
 			break;
@@ -76,41 +81,9 @@ set_option_value(ServiceOption * list, const char *name, const char *value)
 	return !found;
 }
 
-/*
- * Get the value for a particular option
- *
- * @param[in]	list	the option list
- * @param[in]	name	name of the option
- * @param[out]	value	the value of the option copied to
- * @return			zero on success, non-zero otherwise
- *
- */
-int
-get_option_value_copy(ServiceOption * list, const char *name, char *value)
-{
-	ServiceOption *node = list;
-	int			found = 0;
-
-	while (node && !found)
-	{
-		if (!strcmp(name, node->name))
-		{
-			strncpy(value, node->value, OPTION_VALUE_LEN);
-			found = 1;
-			break;
-		}
-	}
-
-	return !found;
-}
 
 /*
  * Get the value for a particular option, NULL if the option is not found.
- *
- * @param[in]	list	the option list
- * @param[in]	name	name of the option
- * @return		pointer to value of the
- *
  */
 char *
 get_option_value(ServiceOption * list, const char *name)
@@ -120,33 +93,43 @@ get_option_value(ServiceOption * list, const char *name)
 	while (node)
 	{
 		if (!strcmp(name, node->name))
-			return node->value;
+			return node->value_ptr;
 		node = node->next;
 	}
 
 	return NULL;
 }
 
+
 /*
- * Get the value for a particular option, NULL if the option is not found.
- *
- * @param[in]	list			the option list
- * @param[in]	print_value		if non-zero name and value is printed(for debugging)
- *								otherwise prints name and description for help.
- * @return		void
- *
+ * Print the service options to the console or to a text buffer. If print_value
+ * is true, the value of the option is printed, otherwise the description is
+ * printed.
  */
 void
-print_service_options(ServiceOption * list, int print_value)
+print_service_options(ServiceOption * list, bool print_value, char *text, size_t max_len)
 {
-	ServiceOption *option = list;
+	ServiceOption *last_node = list;
+	char		option_info[OPTION_NAME_LEN + OPTION_VALUE_LEN + 8];
 
-	while (option)
+	/* options are added to the front display from last to get the same order */
+	while (last_node && last_node->next)
+		last_node = last_node->next;
+
+	while (last_node)
 	{
+		/* TODO print value by default if DEBUG */
 		if (print_value)
-			ereport(INFO, (errmsg("%s: %s\n", option->name, option->value)));
+			sprintf(option_info, "\n%s: %s", last_node->name, last_node->value_ptr);
 		else
-			ereport(INFO, (errmsg("%s:%s\n", option->name, option->description)));
-		option = option->next;
+			sprintf(option_info, "\n%s: %s", last_node->name, last_node->description);
+
+		/* print all options in case of console */
+		if (!text)
+			ereport(INFO, (errmsg("%s", option_info)));
+		else if (last_node->help_display)
+			strncat(text, option_info, max_len);
+
+		last_node = last_node->prev;
 	}
 }

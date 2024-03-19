@@ -1,5 +1,7 @@
 #include "ai_service.h"
+
 #include <funcapi.h>
+
 #include "guc/pg_ai_guc.h"
 #include "services/openai/service_gpt.h"
 #include "services/openai/service_image_gen.h"
@@ -8,10 +10,6 @@
 
 /*
  * Clear the AIService data
- *
- * @param[out]	ai_service 	pointer to the AIService to be initialized
- * @return		void
- *
  */
 void
 reset_service(AIService * ai_service)
@@ -22,10 +20,6 @@ reset_service(AIService * ai_service)
 
 /*
  * Initialize AIService vtable with the function from the ChatGPT service.
- *
- * @param[out]	ai_service	pointer to the AIService to be initialized
- * @return		void
- *
  */
 static int
 initialize_gpt(AIService * ai_service)
@@ -47,11 +41,7 @@ initialize_gpt(AIService * ai_service)
 }
 
 /*
- * Initialize AIService vtable with the function from the Dalle-2 service.
- *
- * @param[out]	ai_service	pointer to the AIService to be initialized
- * @return:		zero on success, non-zero otherwise
- *
+ * Initialize AIService vtable with the function from the dall-e-2 service.
  */
 static int
 initialize_image_generator(AIService * ai_service)
@@ -73,11 +63,7 @@ initialize_image_generator(AIService * ai_service)
 }
 
 /*
- * Initialize AIService vtable with the function from the ChatGPT service.
- *
- * @param[out]	ai_service	pointer to the AIService to be initialized
- * @return		void
- *
+ * Initialize AIService vtable with functions from the embeddings service.
  */
 static int
 initialize_embeddings(AIService * ai_service)
@@ -98,11 +84,7 @@ initialize_embeddings(AIService * ai_service)
 }
 
 /*
- * Initialize AIService vtable with the function from the ChatGPT service.
- *
- * @param[out]	ai_service	pointer to the AIService to be initialized
- * @return		void
- *
+ * Initialize AIService vtable with the function from the moderation service.
  */
 static int
 initialize_moderation(AIService * ai_service)
@@ -126,14 +108,10 @@ initialize_moderation(AIService * ai_service)
 
 /*
  * Initialize the AIService based on the service parameter.
- *
- * @param[in/out]	ai_service	pointer to the AIService to be initialized
- * @param[in] 		name		pointer to the service name
- * @return			zero on success, non-zero otherwise
- *
  */
 int
-initialize_service(const int service_flags, const int model_flags, AIService * ai_service)
+initialize_service(const int service_flags, const int model_flags,
+				   AIService * ai_service)
 {
 	int			return_value = RETURN_ERROR;
 	char		service_name[PG_AI_NAME_LENGTH];
@@ -143,6 +121,7 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 	char		model_url[SERVICE_DATA_SIZE];
 	char	   *api_key;
 
+	/* initialize the service based on the service and model flags */
 	if (service_flags & SERVICE_OPENAI)
 	{
 		strcpy(service_name, SERVICE_OPENAI_NAME);
@@ -192,24 +171,31 @@ initialize_service(const int service_flags, const int model_flags, AIService * a
 		(ai_service->init_service_options) (ai_service);
 
 		/* set the constant model specific info and options */
-		strcpy(ai_service->service_data->service_description, service_description);
+		strcpy(ai_service->service_data->service_description,
+			   service_description);
 		strcpy(ai_service->service_data->model_description, model_description);
-		set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME, service_name);
-		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME, model_name);
-		set_option_value(ai_service->service_data->options, OPTION_ENDPOINT_URL, model_url);
+		set_option_value(ai_service->service_data->options,
+						 OPTION_SERVICE_NAME, service_name, NULL /* value_ptr */ ,
+						 0 /* size */ );
+		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME,
+						 model_name, NULL /* value_ptr */ , 0 /* size */ );
+		set_option_value(ai_service->service_data->options,
+						 OPTION_ENDPOINT_URL, model_url, NULL /* value_ptr */ ,
+						 0 /* size */ );
+
+		/* set the API key if it is available in a GUC */
 		api_key = get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY);
 		if (api_key)
-			set_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY, api_key);
+			set_option_value(ai_service->service_data->options,
+							 OPTION_SERVICE_API_KEY, api_key,
+							 NULL /* value_ptr */ , 0 /* size */ );
 	}
 	return return_value;
 }
 
+
 /*
  * Generic callback to return the AI service's provider.
- *
- * @param[in]	ai_service	pointer to the initialized AIService
- * @return		pointer too the AI service provider
- *
  */
 const char *
 get_service_name(const AIService * ai_service)
@@ -217,12 +203,19 @@ get_service_name(const AIService * ai_service)
 	return (get_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME));
 }
 
+
 /*
- * Generic callback to return the AI service name.
- *
- * @param[in]	ai_service	pointer to the initialized AIService
- * @return		pointer too the AI service name
- *
+ * Generic callback to return the AI service description.
+ */
+const char *
+get_service_description(const AIService * ai_service)
+{
+	return (ai_service->service_data->service_description);
+}
+
+
+/*
+ * Generic callback to return the AI model name.
  */
 const char *
 get_model_name(const AIService * ai_service)
@@ -230,46 +223,12 @@ get_model_name(const AIService * ai_service)
 	return (get_option_value(ai_service->service_data->options, OPTION_MODEL_NAME));
 }
 
-const char *
-get_service_description(const AIService * ai_service)
-{
-	return (ai_service->service_data->service_description);
-}
 
+/*
+ * Generic callback to return the AI model description.
+ */
 const char *
 get_model_description(const AIService * ai_service)
 {
 	return (ai_service->service_data->model_description);
-}
-
-/*
- * Generic callback to return the parameters applicable to a AI service.
- * This method assumes that the AIService is initialized, which defines
- * the parameters for the service.
- *
- * @param[in]	ai_service	pointer to the initialized AIService
- * @param[out]	text		pointer in which parameter list is returned
- * @param[in]	max_len		max length the text parameter can accomodate
- * @return		void
- *
- */
-void
-get_service_options(const AIService * ai_service, char *text, const size_t max_len)
-{
-	ServiceOption *option = ai_service->service_data->options;
-	char		option_info[PG_AI_NAME_LENGTH];
-
-	/* check service and the return ptrs */
-	if (!ai_service || !text)
-		return;
-
-	while (option)
-	{
-		if (option->help_display)
-		{
-			sprintf(option_info, "\n%s: %s", option->name, option->description);
-			strncat(text, option_info, max_len);
-		}
-		option = option->next;
-	}
 }

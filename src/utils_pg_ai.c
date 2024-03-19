@@ -1,23 +1,14 @@
 #include "utils_pg_ai.h"
-#include <stdlib.h>
-#include <string.h>
+
+#include <funcapi.h>
+
 #include "ai_config.h"
-#include "postgres.h"
-#include "utils/builtins.h"
-#include "executor/spi.h"
-#include "funcapi.h"
+
 
 /*
  * Function to escape the special characters that are to be sent as data
  * to a REST service. Make sure the dst array passed to this method can
  * accomodate the source string along with the escaped characters.
- *
- * @param[in]	src				the source string which has to be escaped
- * @param[in]	src_len			length of the src string
- * @param[out]	dst				the dst for the escaped string
- * @param[in]	max_dst_lenm	max length of dst array
- * @return		zero on success, non-zero otherwise
- *
  */
 int
 escape_encode(const char *src, const size_t src_len, char *dst,
@@ -53,16 +44,10 @@ escape_encode(const char *src, const size_t src_len, char *dst,
 	return 0;
 }
 
+
 /*
  * Given a string, get the number of words. If the word count is more
  * than a given max threshold, the counting is stopped.
- *
- * @param[in]	text			text in which the words have to be counted
- * @param[in]	max_allowed		the max count that this method counts
- * @param[out]	actual_count	the actual word count in the text, valid only
- *								if the words are < max_allowed
- * @return		zero on success, non-zero otherwise
- *
  */
 int
 get_word_count(const char *text, const size_t max_allowed, size_t *actual_count)
@@ -87,6 +72,10 @@ get_word_count(const char *text, const size_t max_allowed, size_t *actual_count)
 	return RETURN_ERROR;
 }
 
+
+/*
+ * Function to remove the given columns from the given TupleDesc.
+ */
 TupleDesc
 remove_columns(TupleDesc tupdesc, char **column_names, int num_columns)
 {
@@ -131,6 +120,10 @@ remove_columns(TupleDesc tupdesc, char **column_names, int num_columns)
 	return new_tupdesc;
 }
 
+
+/*
+* Function to remove the given columns from the given SPITupleTable.
+*/
 SPITupleTable *
 remove_columns_from_spitb(SPITupleTable *tuptable, TupleDesc *result_tupdesc, char *column_names[], int num_columns)
 {
@@ -183,13 +176,9 @@ remove_columns_from_spitb(SPITupleTable *tuptable, TupleDesc *result_tupdesc, ch
 	return new_tuptable;
 }
 
+
 /*
  * Function to check if a given extension is installed in the database.
- *
- * @param[in]	ext_name	 Name of the extension to be checked.
- *
- * @return		non-zero if extension installed, otherwise zero
- *
  */
 int
 is_extension_installed(const char *ext_name)
@@ -212,6 +201,10 @@ is_extension_installed(const char *ext_name)
 }
 
 
+/*
+* Function to generate a primary key column name from the given vector store
+* name.
+*/
 void
 make_pk_col_name(char *name, size_t max_len, const char *vector_store_name)
 {
@@ -219,6 +212,9 @@ make_pk_col_name(char *name, size_t max_len, const char *vector_store_name)
 }
 
 
+/*
+* Function to generate a JSON string from the given keys, values and data types.
+*/
 void
 generate_json(char *buffer, const char *keys[], const char *values[],
 			  const char *data_types[], size_t num_entries)
@@ -249,4 +245,30 @@ generate_json(char *buffer, const char *keys[], const char *values[],
 			strcat(buffer, ",");
 	}
 	strcat(buffer, "}");
+}
+
+
+/*
+ * Function to remove new lines and spaces from a given stream.
+ */
+void
+remove_new_lines(char *stream)
+{
+	char	   *p = stream;
+	char	   *q = stream;
+
+	/* Pointer to write the modified stream(without newlines) */
+	while (*p != '\0')
+	{
+		if ((*p != '\n') && (*p != ' '))
+		{
+			*q = *p;
+			q++;
+		}
+		p++;
+	}
+
+	/* Add the null terminator to mark the end of the modified stream */
+	*q = '\0';
+
 }

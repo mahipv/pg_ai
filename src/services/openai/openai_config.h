@@ -1,10 +1,14 @@
 #ifndef _OPENAI_CONFIG_H_
 #define _OPENAI_CONFIG_H_
 
-/* -----------------8< gpt---------- */
-/* "instruct" is better at answering pointed questions and "gpt" in general is chatty */
+/* -----------------8< gpt service ---------- */
+/*
+* "instruct" is better at answering pointed questions and "gpt"
+* in general is chatty
+*/
 #define  MODEL_OPENAI_GPT_NAME "gpt-3.5-turbo-instruct"
-#define  MODEL_OPENAI_GPT_DESCRIPTION "GPT Model for answering pointed questions."
+#define  MODEL_OPENAI_GPT_DESCRIPTION \
+         "GPT Model for answering pointed questions."
 
 #define GPT_API_URL "https://api.openai.com/v1/completions"
 #define GPT_SUMMARY_PROMPT "Get summary of the following in 1 lines."
@@ -18,10 +22,10 @@
                    '<prompt> eg: Get summary of the following in 1 line')  \n\n" \
 "(ii) pg_ai_insight_agg(<text column>,\n\
                         '<prompt agg> eg: Choose a topic for the following:') \n"
-/* -----------------gpt >8---------- */
+/* -----------------gpt service >8---------- */
 
 
-/* -----------------8< embeddings ---------- */
+/* -----------------8< embeddings service ---------- */
 #define  MODEL_OPENAI_EMBEDDINGS_NAME "ada"
 #define  MODEL_OPENAI_EMBEDDINGS_DESCRIPTION "OpenAI's embeddings model(vectors)"
 
@@ -48,9 +52,9 @@
 
 #define MIN_COUNT_RECORDS 1
 #define MAX_COUNT_RECORDS 10
-/* ----------------- embeddings >8---------- */
+/* ----------------- embeddings service >8---------- */
 
-/*--------------8< Image Gen --------------*/
+/*--------------8< Image Gen service --------------*/
 #define  MODEL_OPENAI_IMAGE_GEN_NAME "dall-e-3"
 #define  MODEL_OPENAI_IMAGE_GEN_DESCRIPTION "OpenAI's text-to-image model"
 #define IMAGE_GEN_AGG_PROMPT "Make a picture with the following"
@@ -65,20 +69,21 @@
                            '<prompt> eg:Make a picture of the following:')\n\n" \
 "(ii) pg_ai_generate_image_agg(<text column>,\n\
                       '<prompt agg> eg: Make a picture with the following:') \n"
-/*-------------- Image Gen >8--------------*/
+/*-------------- Image Gen service >8--------------*/
 
 
-/* -----------------8< moderation ---------- */
+/* -----------------8< moderation service ---------- */
 /* "instruct" is better at answering pointed questions and "gpt" in general is chatty */
 #define  MODEL_OPENAI_MODERATION_NAME "text-moderation-latest"
-#define  MODEL_OPENAI_MODERATION_DESCRIPTION "Classifies input on harmful categories."
+#define  MODEL_OPENAI_MODERATION_DESCRIPTION \
+         "Classifies input on harmful categories."
 
 #define MODERATION_API_URL "https://api.openai.com/v1/moderations"
 
 #define MODERATION_HELP "\nFunctions:\n"\
 "(i) pg_ai_moderation(<text column>)  \n\n" \
 "(ii) pg_ai_moderation_agg(<text column>) \n"
-/* -----------------moderation >8---------- */
+/* -----------------moderation service >8---------- */
 
 
 #endif							/* _OPENAI_CONFIG_H_ */

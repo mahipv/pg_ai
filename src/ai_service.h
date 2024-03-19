@@ -2,7 +2,9 @@
 #define _AI_SERVICE_H_
 
 #include <stdio.h>
+
 #include "postgres.h"
+
 #include "ai_config.h"
 
 /*
@@ -105,12 +107,14 @@ typedef struct AIService
 	MemoryContext memory_context;
 }			AIService;
 
+#define IS_PG_AI_FUNCTION(flag) (ai_service->function_flags & flag)
+
 void		reset_service(AIService * ai_service);
-int			initialize_service(const int service_flags, const int model_flags, AIService * ai_service);
+int			initialize_service(const int service_flags, const int model_flags,
+							   AIService * ai_service);
 const char *get_service_name(const AIService * ai_service);
 const char *get_service_description(const AIService * ai_service);
 const char *get_model_name(const AIService * ai_service);
 const char *get_model_description(const AIService * ai_service);
-void		get_service_options(const AIService * ai_service, char *text, const size_t max_len);
 
 #endif							/* _AI_SERVICE_H_ */

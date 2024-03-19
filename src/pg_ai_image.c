@@ -1,9 +1,7 @@
 #include <postgres.h>
 #include <funcapi.h>
-#include <miscadmin.h>
 #include <utils/builtins.h>
-#include <utils/typcache.h>
-#include "executor/spi.h"
+
 #include "rest/rest_transfer.h"
 #include "ai_service.h"
 #include "guc/pg_ai_guc.h"
@@ -22,16 +20,20 @@ pg_ai_generate_image(PG_FUNCTION_ARGS)
 	/* check for the column name whose value is to be interpreted */
 	if (PG_ARGISNULL(0))
 		ereport(ERROR,
-				(errmsg("Incorrect parameters: please specify the column name\n")));
+				(errmsg("Incorrect parameters: please specify the column \
+						 name\n")));
 
+	/* Create a new memory context for this PgAi function */
 	func_context = AllocSetContextCreate(CurrentMemoryContext,
 										 "ai functions context",
 										 ALLOCSET_DEFAULT_SIZES);
 	old_context = MemoryContextSwitchTo(func_context);
 	ai_service->memory_context = func_context;
 
+	/* set the function specific flag */
 	ai_service->function_flags |= FUNCTION_GENERATE_IMAGE;
-	return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_IMAGE_GEN, ai_service);
+	return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_IMAGE_GEN,
+									  ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
@@ -43,21 +45,22 @@ pg_ai_generate_image(PG_FUNCTION_ARGS)
 	/* initialize the service data to be sent to the AI service	*/
 	return_value = (ai_service->init_service_data) (NULL, ai_service, NULL);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
-
-	/* print_service_options(ai_service->service_data->options, 0); */
-	/* print_service_options(ai_service->service_data->options, 1); */
+		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
+										 service data."));
 
 	/* call the transfer */
 	(ai_service->rest_transfer) (ai_service);
 
+	/* copy the result to old mem conext and free the function context */
 	MemoryContextSwitchTo(old_context);
 	return_text = cstring_to_text((char *) (ai_service->rest_response->data));
 	if (ai_service->memory_context)
 		MemoryContextDelete(ai_service->memory_context);
 	pfree(ai_service);
+
 	PG_RETURN_TEXT_P(return_text);
 }
+
 
 /* structure to save the context for the aggregate function */
 typedef struct AggStateStruct
@@ -66,6 +69,7 @@ typedef struct AggStateStruct
 	char		column_data[16 * 1024];
 	char	   *param_file_path;
 }			AggStateStruct;
+
 
 /*
  * The implementation of the aggregate transfer function, called once per
@@ -86,11 +90,11 @@ pg_ai_generate_image_agg_transfn(PG_FUNCTION_ARGS)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("transfn called in non-aggregate context")));
-
 	if (!AggGetAggref(fcinfo))
 		elog(ERROR, "aggregate called in a non-aggregate context");
 
 	state_struct = fcinfo->flinfo->fn_extra;
+
 	/* if this is the first call, set up the query state */
 	if (state_struct == NULL)
 	{
@@ -101,7 +105,9 @@ pg_ai_generate_image_agg_transfn(PG_FUNCTION_ARGS)
 		state_struct->ai_service = (AIService *) palloc0(sizeof(AIService));
 
 		state_struct->ai_service->function_flags |= FUNCTION_GENERATE_IMAGE_AGGREGATE;
-		return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_IMAGE_GEN, state_struct->ai_service);
+		return_value = initialize_service(SERVICE_OPENAI,
+										  MODEL_OPENAI_IMAGE_GEN,
+										  state_struct->ai_service);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
@@ -117,7 +123,8 @@ pg_ai_generate_image_agg_transfn(PG_FUNCTION_ARGS)
 	/* accumulate non NULL values */
 	if (!PG_ARGISNULL(1))
 	{
-		strcat(state_struct->column_data, TextDatumGetCString(PG_GETARG_DATUM(1)));
+		strcat(state_struct->column_data,
+			   TextDatumGetCString(PG_GETARG_DATUM(1)));
 		strcat(state_struct->column_data, " ");
 		/* ereport(INFO,(errmsg("%s\n",state_struct->column_data))); */
 	}
@@ -161,7 +168,8 @@ pg_ai_generate_image_agg_finalfn(PG_FUNCTION_ARGS)
 	return_value = (state_struct->ai_service->init_service_data)
 		(NULL, state_struct->ai_service, state_struct->column_data);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make options"));
+		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot initialize \
+										 service data."));
 
 	/* ereport(INFO,(errmsg("Final :%s\n",state_struct->column_data))); */
 	/* call the transfer */

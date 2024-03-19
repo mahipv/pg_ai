@@ -1,9 +1,6 @@
 #ifndef _REST_TRANSFER_H_
 #define _REST_TRANSFER_H_
 
-#include <malloc.h>
-#include <string.h>
-#include <curl/curl.h>
 #include "ai_service.h"
 
 typedef void (*make_post_header) (char *buffer, const size_t maxlen,

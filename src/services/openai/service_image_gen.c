@@ -1,53 +1,53 @@
 #include "service_image_gen.h"
-#include <ctype.h>
-#include <malloc.h>
-#include "postgres.h"
+
 #include "utils/builtins.h"
+
 #include "utils_pg_ai.h"
 #include "rest/rest_transfer.h"
-#include "guc/pg_ai_guc.h"
 
 /*
- * Method to define aptions applicable to dalle2 service. The values for this
- * options are read from the json options file.
- *
- * Parameters:
- * service_data	[out]	options added to the service specific data
- *
- * Return:		None
- *
- */
+* Function to define aptions applicable to the image gen service calls.
+* These options are to be passed via SQL function calls or set by GUCs.
+*/
 static void
 define_options(AIService * ai_service)
 {
-	ServiceData *service_data = ai_service->service_data;
+	ServiceOption **option_list = &(ai_service->service_data->options);
 
-	define_new_option(&(service_data->options), OPTION_SERVICE_NAME,
-					  OPTION_SERVICE_NAME_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
-	define_new_option(&(service_data->options), OPTION_MODEL_NAME,
-					  OPTION_MODEL_NAME_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
-	define_new_option(&(service_data->options), OPTION_ENDPOINT_URL,
-					  OPTION_ENDPOINT_URL_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
-	define_new_option(&(service_data->options), OPTION_INSIGHT_COLUMN,
-					  OPTION_INSIGHT_COLUMN_DESC, 0 /* guc */ , 0 /* required */ , true /* help_display */ );
-	define_new_option(&(service_data->options), OPTION_SERVICE_API_KEY,
-					  OPTION_SERVICE_API_KEY_DESC, 1 /* guc */ , 1 /* required */ , false /* help_display */ );
+	/* common options for the services */
+	define_new_option(option_list, OPTION_SERVICE_NAME,
+					  OPTION_SERVICE_NAME_DESC, true /* guc */ ,
+					  true /* required */ , false /* help_display */ );
+	define_new_option(option_list, OPTION_MODEL_NAME,
+					  OPTION_MODEL_NAME_DESC, true /* guc */ ,
+					  true /* required */ , false /* help_display */ );
+	define_new_option(option_list, OPTION_ENDPOINT_URL,
+					  OPTION_ENDPOINT_URL_DESC, true /* guc */ ,
+					  true /* required */ , false /* help_display */ );
+	define_new_option(option_list, OPTION_SERVICE_API_KEY,
+					  OPTION_SERVICE_API_KEY_DESC, true /* guc */ ,
+					  true /* required */ , false /* help_display */ );
+	define_new_option(option_list, OPTION_COLUMN_VALUE,
+						  OPTION_COLUMN_VALUE_DESC, false /* guc */ ,
+						  false /* required */ , true /* help_display */ );
+	
+	/* options for the non-aggregate function */
 	if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE)
-		define_new_option(&(service_data->options), OPTION_SERVICE_PROMPT,
-						  OPTION_SERVICE_PROMPT_DESC, 0 /* guc */ , 1 /* required */ , true /* help_display */ );
+		define_new_option(option_list, OPTION_SERVICE_PROMPT,
+					  	  OPTION_SERVICE_PROMPT_DESC, false /* guc */ ,
+					  	  true /* required */ , true /* help_display */ );	
+	
+	/* options for the aggregate function */
 	if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE)
-		define_new_option(&(service_data->options), OPTION_SERVICE_PROMPT_AGG,
-						  OPTION_SERVICE_PROMPT_AGG_DESC, 0 /* guc */ , 1 /* required */ , true /* help_display */ );
+		define_new_option(option_list, OPTION_SERVICE_PROMPT_AGG,
+						  OPTION_SERVICE_PROMPT_AGG_DESC, false /* guc */ ,
+						  true /* required */ , true /* help_display */ );
 }
 
 /*
- * Initialize the options to be used for dalle2. The options will hold
+ * Initialize the options to be used for dall-e. The options will hold
  * information about the AI service and some of them will be used in the curl
  * headers for REST transfer.
- *
- * @param[out]	service_data	options added to the service specific data
- * @return		void
- *
  */
 void
 image_gen_init_service_options(void *service)
@@ -61,13 +61,9 @@ image_gen_init_service_options(void *service)
 	define_options(ai_service);
 }
 
+
 /*
  * Return the help text to be displayed for the dalle2 service
- *
- * @param[out]	help_text	the help text is reurned in this array
- * @param[in]	max_len		the max length of the help text the array can hold
- * @return		void
- *
  */
 void
 image_gen_help(char *help_text, const size_t max_len)
@@ -76,97 +72,74 @@ image_gen_help(char *help_text, const size_t max_len)
 		strncpy(help_text, IMAGE_GEN_HELP, max_len);
 }
 
+
 /*
- * Read the json options file and set the values in the options list for
- * the dalle2 service
- *
- * @param[in]		file_path	the help text is reurned in this array
- * @param[in/out]	ai_service	pointer to the AIService which has the
- *								defined option list
- * @return			zero on success, non-zero otherwise
- *
- */
-int
-image_gen_add_service_headers(CURL * curl, struct curl_slist **headers, void *service)
-{
-	AIService  *ai_service = (AIService *) service;
-	struct curl_slist *curl_headers = *headers;
-	char		key_header[128];
-
-	curl_headers = curl_slist_append(curl_headers, "Content-Type: application/json");
-	snprintf(key_header, sizeof(key_header), "Authorization: Bearer %s",
-			 get_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY));
-	curl_headers = curl_slist_append(curl_headers, key_header);
-	*headers = curl_headers;
-
-	return RETURN_ZERO;
-}
-
+* Function to set the options for the image_gen service. The options
+* are set from function arguments or from the GUCs. The options are
+* validated andthe function returns an error if any of the required
+* options are not set.
+*/
 int
 image_gen_set_and_validate_options(void *service, void *function_options)
 {
 	PG_FUNCTION_ARGS = (FunctionCallInfo) function_options;
 	AIService  *ai_service = (AIService *) service;
-	ServiceOption *options;
+	ServiceOption *options = ai_service->service_data->options;
 	int			arg_offset;
 
 	/* aggregate functions get an extra argument at position 0 */
-	arg_offset = (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE) ? 1 : 0;
+	arg_offset = (ai_service->function_flags &
+				  FUNCTION_GENERATE_IMAGE_AGGREGATE) ? 1 : 0;
 
-	if (!PG_ARGISNULL(0 + arg_offset))
-		set_option_value(ai_service->service_data->options, OPTION_INSIGHT_COLUMN, text_to_cstring(PG_GETARG_TEXT_P(0 + arg_offset)));
+	if ((ai_service->function_flags & FUNCTION_GENERATE_IMAGE) &&
+		(!PG_ARGISNULL(0 + arg_offset)))
+		set_option_value(options, OPTION_COLUMN_VALUE,
+						 text_to_cstring(PG_GETARG_TEXT_P(0 + arg_offset)),
+						 NULL /* value_ptr */ , 0 /* size */ );
 
-
+	/* set the default prompt or passed prompt based on the function */
 	if (!PG_ARGISNULL(1 + arg_offset))
 	{
 		if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE)
-			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT_AGG, text_to_cstring(PG_GETARG_TEXT_P(1 + arg_offset)));
+			set_option_value(options, OPTION_SERVICE_PROMPT_AGG,
+							 text_to_cstring(PG_GETARG_TEXT_P(1 + arg_offset)),
+							 NULL /* value_ptr */ , 0 /* size */ );
 		else
-			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT, text_to_cstring(PG_GETARG_TEXT_P(1 + arg_offset)));
+			set_option_value(options, OPTION_SERVICE_PROMPT,
+							 text_to_cstring(PG_GETARG_TEXT_P(1 + arg_offset)),
+							 NULL /* value_ptr */ , 0 /* size */ );
 	}
 	else						/* set the default prompts */
 	{
 		if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE)
-			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT_AGG, IMAGE_GEN_AGG_PROMPT);
+			set_option_value(options, OPTION_SERVICE_PROMPT_AGG,
+							 IMAGE_GEN_AGG_PROMPT, NULL /* value_ptr */ ,
+							 0 /* size */ );
 		else
-			set_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT, IMAGE_GEN_PROMPT);
+			set_option_value(options, OPTION_SERVICE_PROMPT, IMAGE_GEN_PROMPT,
+							 NULL /* value_ptr */ , 0 /* size */ );
 	}
 
-	options = ai_service->service_data->options;
-	while (options)
+	/* check if all required options are set */
+	for (options = ai_service->service_data->options; options;
+		 options = options->next)
 	{
-		/* paramters passed to function take presidence */
-		if (options->is_set)
+		if (options->required && !options->is_set)
 		{
-			options = options->next;
-			continue;
+			ereport(INFO, (errmsg("Required %s option \"%s\" missing.\n",
+								  options->guc_option ? "GUC" : "function", options->name)));
+			return RETURN_ERROR;
 		}
-		else
-		{
-
-			/* required and not set */
-			if (options->required)
-			{
-				ereport(INFO, (errmsg("Required value for option \"%s\" missing.\n", options->name)));
-				return RETURN_ERROR;
-			}
-		}
-		options = options->next;
 	}
 	return RETURN_ZERO;
 }
 
+
 /*
- * This function is called from the PG layer after it has the table data and
+* This function is called from the PG layer after it has the table data and
  * before invoking the REST transfer call. Load the json options(will be used
  * for the transfer)and copy the data received from PG into the REST request
  * structures.
- *
- * @param[in]		file_path	the help text is reurned in this array
- * @param[in/out]	ai_service	pointer to the AIService which has the
- *								defined option list
- * @return			zero on success, non-zero otherwise
- *
  */
 int
 image_gen_init_service_data(void *options, void *service, void *data)
@@ -178,7 +151,7 @@ image_gen_init_service_data(void *options, void *service, void *data)
 	service_data = ((AIService *) ai_service)->service_data;
 
 	if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE)
-		column_data = get_option_value(ai_service->service_data->options, OPTION_INSIGHT_COLUMN);
+		column_data = get_option_value(ai_service->service_data->options, OPTION_COLUMN_VALUE);
 	else
 		column_data = (char *) data;
 
@@ -188,10 +161,14 @@ image_gen_init_service_data(void *options, void *service, void *data)
 	/* print_service_options(service_data->options, 1); */
 
 	if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE)
-		strcpy(service_data->request, get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT));
+		strcpy(service_data->request,
+			   get_option_value(ai_service->service_data->options,
+								OPTION_SERVICE_PROMPT));
 
 	if (ai_service->function_flags & FUNCTION_GENERATE_IMAGE_AGGREGATE)
-		strcpy(service_data->request, get_option_value(ai_service->service_data->options, OPTION_SERVICE_PROMPT_AGG));
+		strcpy(service_data->request,
+			   get_option_value(ai_service->service_data->options,
+								OPTION_SERVICE_PROMPT_AGG));
 
 	strcat(service_data->request, " \"");
 	strcat(service_data->request, column_data);
@@ -201,13 +178,10 @@ image_gen_init_service_data(void *options, void *service, void *data)
 	return RETURN_ZERO;
 }
 
+
 /*
  * Function to cleanup the transfer structures before initiating a new
  * transfer request.
- *
- * @param[in/out]	ai_service	pointer to the AIService which has the
- * @return			void
- *
  */
 int
 image_gen_cleanup_service_data(void *ai_service)
@@ -218,12 +192,6 @@ image_gen_cleanup_service_data(void *ai_service)
 
 /*
  * Function to initialize the service buffers for data tranasfer.
- *
- * @param[out]	rest_request	pointer to the REST request data
- * @param[out]	rest_reponse	pointer to the REST response data
- * @param[in]	service_data	pointer to the service specific data
- * @return		void
- *
  */
 void
 image_gen_set_service_buffers(RestRequest * rest_request,
@@ -237,13 +205,51 @@ image_gen_set_service_buffers(RestRequest * rest_request,
 	rest_response->max_size = service_data->max_response_size;
 }
 
+
+/*
+ * Initialize the service headers in the curl context. This is a
+ * call back from REST transfer layer. The curl headers are
+ * constructed from this list.
+ */
+int
+image_gen_add_service_headers(CURL * curl, struct curl_slist **headers,
+							  void *service)
+{
+	AIService  *ai_service = (AIService *) service;
+	struct curl_slist *curl_headers = *headers;
+	char		key_header[128];
+
+	curl_headers = curl_slist_append(curl_headers, "Content-Type: application/json");
+	snprintf(key_header, sizeof(key_header), "Authorization: Bearer %s",
+			 get_option_value(ai_service->service_data->options,
+							  OPTION_SERVICE_API_KEY));
+	curl_headers = curl_slist_append(curl_headers, key_header);
+	*headers = curl_headers;
+
+	return RETURN_ZERO;
+}
+
+
+/* TODO */
+/*
+ * Callback to make the post header
+ */
+#define IMAGE_GEN_PRE_PREFIX "{\"prompt\":\""
+#define IMAGE_GEN_POST_PREFIX "\",\"num_images\":1,\"size\":\"1024x1024\",\"response_format\":\"url\"}"
+void
+image_gen_post_header_maker(char *buffer, const size_t maxlen,
+							const char *data, const size_t len)
+{
+	strcpy(buffer, IMAGE_GEN_PRE_PREFIX);
+	strcat(buffer, data);
+	strcat(buffer, IMAGE_GEN_POST_PREFIX);
+	/* ereport(INFO, (errmsg("Post header: %s\n", buffer))); */
+}
+
+
 /*
  * Function to initiate the curl transfer and extract the response from
  * the json returned by the service.
- *
- * @param[in]	service		pointer to the service specific data
- * @return		void
- *
  */
 void
 image_gen_rest_transfer(void *service)
@@ -263,9 +269,11 @@ image_gen_rest_transfer(void *service)
 								   CStringGetTextDatum(
 													   (char *) (ai_service->rest_response->data)),
 								   PointerGetDatum(cstring_to_text(RESPONSE_JSON_DATA)));
+
 		url = DirectFunctionCall2(json_array_element_text,
 								  data,
 								  PointerGetDatum(0));
+
 		return_text = DirectFunctionCall2(json_object_field_text,
 										  url,
 										  PointerGetDatum(cstring_to_text(RESPONSE_JSON_URL)));
@@ -275,35 +283,14 @@ image_gen_rest_transfer(void *service)
 	}
 	else if (ai_service->rest_response->data_size == 0)
 	{
-		strcpy(ai_service->service_data->response, "Something is not ok, try again.");
+		strcpy(ai_service->service_data->response,
+			   "Something is not ok, try again.");
 	}
+
 	/* remove prefexing \n */
 	for (int i = 0; ai_service->service_data->response[i] != '\0'; i++)
 		if (ai_service->service_data->response[i] != '\n')
 			break;
 		else
 			ai_service->service_data->response[i] = ' ';
-}
-
-/* TODO */
-/*
- * Callback to make the post header
- *
- * @param[out]	buffer	the post header is returned in this
- * @param[in]	maxlen	the max length the buffer can accomodate
- * @param[in]	data	the data from which post header is created
- * @param[in]	len		length of the data
- * @return		void
- *
- */
-#define IMAGE_GEN_PRE_PREFIX "{\"prompt\":\""
-#define IMAGE_GEN_POST_PREFIX "\",\"num_images\":1,\"size\":\"1024x1024\",\"response_format\":\"url\"}"
-void
-image_gen_post_header_maker(char *buffer, const size_t maxlen,
-							const char *data, const size_t len)
-{
-	strcpy(buffer, IMAGE_GEN_PRE_PREFIX);
-	strcat(buffer, data);
-	strcat(buffer, IMAGE_GEN_POST_PREFIX);
-	/* ereport(INFO, (errmsg("Post header: %s\n", buffer))); */
 }

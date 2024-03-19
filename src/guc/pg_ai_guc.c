@@ -1,48 +1,66 @@
 #include "pg_ai_guc.h"
+
 #include "postgres.h"
 #include "utils/guc.h"
 
-typedef struct PG_AI_STRING_GUCs
+
+/* GUCs that accept a strings values */
+typedef struct PgAiStringGUCs
 {
 	char	   *name;
 	char	   *description;
-}			PG_AI_STRING_GUCs;
-PG_AI_STRING_GUCs pg_ai_string_gucs[] =
+}			PgAiStringGUCs;
+
+/* for new str GUCs, add entries to this and the values array */
+PgAiStringGUCs pg_ai_str_gucs[] =
 {
 	{PG_AI_GUC_API_KEY, PG_AI_GUC_API_KEY_DESCRIPTION},
 	{PG_AI_GUC_MODEL, PG_AI_GUC_MODEL_DESCRIPTION},
-	{PG_AI_GUC_SERVICE, PG_AI_GUC_SERVICE_DESCRIPTION},
+	{PG_AI_GUC_SERVICE, PG_AI_GUC_SERVICE_DESCRIPTION}
 };
-static char *pg_ai_string_guc_values[] = {NULL, NULL, NULL};
+
+/* the values array should be in sync with the above definition array */
+static char *pg_ai_str_guc_values[] = {NULL, NULL, NULL};
 
 
-typedef struct PG_AI_INT_GUCs
+/* GUCs that accept a integer values */
+typedef struct PgAiIntGUCs
 {
 	char	   *name;
 	char	   *description;
 	int			min_value;
 	int			max_value;
-}			PG_AI_INT_GUCs;
-PG_AI_INT_GUCs pg_ai_int_gucs[] =
+}			PgAiIntGUCs;
+
+/* for new int GUCs, add entries to this and the values array */
+PgAiIntGUCs pg_ai_int_gucs[] =
 {
 	{PG_AI_GUC_WORK_MEM_SIZE, PG_AI_GUC_WORK_MEM_SIZE_DESCRIPTION, PG_AI_GUC_MINIMUM_WORK_MEM_KB, PG_AI_GUC_MAXIMUM_WORK_MEM_KB}
 };
+
+/* set the default/boot value */
 static int	pg_ai_work_mem = PG_AI_GUC_DEFAULT_WORK_MEM_KB;
+
+/* the values array should be in sync with the above definition array */
 static int *pg_ai_int_guc_values[] = {&pg_ai_work_mem};
 
 
+/*
+* Define the GUCs for the AI services.
+*/
 void
 define_pg_ai_guc_variables()
 {
+	int			count;
 
-	int			count = sizeof(pg_ai_string_gucs) / sizeof(pg_ai_string_gucs[0]);
-
+	/* Define the string GUCs */
+	count = sizeof(pg_ai_str_gucs) / sizeof(pg_ai_str_gucs[0]);
 	for (int i = 0; i < count; i++)
 	{
-		DefineCustomStringVariable(pg_ai_string_gucs[i].name,	/* name */
-								   pg_ai_string_gucs[i].description,	/* short desc */
-								   pg_ai_string_gucs[i].description,	/* long desc */
-								   &pg_ai_string_guc_values[i], /* char** for value */
+		DefineCustomStringVariable(pg_ai_str_gucs[i].name,	/* name */
+								   pg_ai_str_gucs[i].description,	/* short desc */
+								   pg_ai_str_gucs[i].description,	/* long desc */
+								   &pg_ai_str_guc_values[i],	/* char** value */
 								   NULL,	/* boot/default value */
 								   PGC_USERSET, /* context */
 								   0,	/* flags */
@@ -52,6 +70,7 @@ define_pg_ai_guc_variables()
 			);
 	}
 
+	/* Define the integer GUCs */
 	count = sizeof(pg_ai_int_gucs) / sizeof(pg_ai_int_gucs[0]);
 	for (int i = 0; i < count; i++)
 	{
@@ -71,22 +90,32 @@ define_pg_ai_guc_variables()
 	}
 }
 
+
+/*
+* Rreturn the value of a given string GUC.
+*/
 char *
 get_pg_ai_guc_string_variable(char *name)
 {
-	int			count = sizeof(pg_ai_string_gucs) / sizeof(pg_ai_string_gucs[0]);
+	int			count;
 
+	count = sizeof(pg_ai_str_gucs) / sizeof(pg_ai_str_gucs[0]);
 	for (int i = 0; i < count; i++)
-		if (strcmp(pg_ai_string_gucs[i].name, name) == 0)
-			return pg_ai_string_guc_values[i];
+		if (strcmp(pg_ai_str_gucs[i].name, name) == 0)
+			return pg_ai_str_guc_values[i];
 	return NULL;
 }
 
+
+/*
+* Rreturn the value of a given integer GUC.
+*/
 int *
 get_pg_ai_guc_int_variable(char *name)
 {
-	int			count = sizeof(pg_ai_int_gucs) / sizeof(pg_ai_int_gucs[0]);
+	int			count;
 
+	count = sizeof(pg_ai_int_gucs) / sizeof(pg_ai_int_gucs[0]);
 	for (int i = 0; i < count; i++)
 		if (strcmp(pg_ai_int_gucs[i].name, name) == 0)
 			return pg_ai_int_guc_values[i];

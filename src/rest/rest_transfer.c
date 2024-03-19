@@ -5,10 +5,6 @@
 /*
  * Initialize the transfer buffers required for the REST transfer.
  * TODO these pointers to be cached to be reused between calls.
- *
- * @param[in/out]	ai_service		the AIService currently in use
- * @return			void
- *
  */
 void
 init_rest_transfer(AIService * ai_service)
@@ -31,10 +27,6 @@ init_rest_transfer(AIService * ai_service)
 /*
  * Cleanup the buffers used for the REST transfer
  * TODO these pointers to be cached to be reused between calls.
- *
- * @param[in/out]	ai_service		the AIService currently in use
- * @return			void
- *
  */
 void
 cleanup_rest_transfer(AIService * ai_service)
@@ -53,15 +45,6 @@ cleanup_rest_transfer(AIService * ai_service)
  * Save the data received for further processing. This callback might
  * get called more than once while receiving the response. The data
  * received by this function is not null terminated.
- *
- * @param[in]	contents	the data returned from the service
- * @param[in]	size		is always 1
- * @param[in]	nmemb		the size of the data being returned
- * @param[in]	userp		user data pointer that was passed to curl
- * @return		size_t		the exact number of bytes processed by
- *							this callback. If not same as nmemb then
- *							the transfer is aborted.
- *
  */
 static size_t
 write_callback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -75,7 +58,8 @@ write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 		return 0;
 	}
 	/* fprintf(stderr, "real size %ld\n", realsize); */
-	memcpy((char *) (response->data) + response->data_size, (char *) contents, realsize);
+	memcpy((char *) (response->data) + response->data_size, (char *) contents,
+		   realsize);
 	response->data_size += realsize;
 	return realsize;
 }
@@ -83,15 +67,6 @@ write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 /*
  * The callback function called by curl library when it has to send data.
  * TODO enable this to pass on large data
- *
- * @param[out]	contents	data should be filled in this buffer
- * @param[in]	size		is always 1
- * @param[in]	nmemb		max size the buffer can take
- * @param[in]	userp		user data pointer that was passed to curl
- * @return		size_t		the exact number of bytes filled in the
- *							buffer. returning 0 will be treated as
- *							end of transfer.
- *
  */
 static size_t
 read_callback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -102,14 +77,6 @@ read_callback(void *contents, size_t size, size_t nmemb, void *userp)
 /*
  * The callback function called by curl library with debug information if
  * CURLOPT_VERBOSE is set. The data will not be null terminated.
- *
- * @param[in]	curl		the curl handle
- * @param[in]	type		the meta data (curl_infotype enum)
- * @param[in]	data		the debug data
- * @param[in]	size		size of the debug data
- * @param[in]	userp		user data pointer that was passed to curl
- * @return		int			this callback is expected to return 0
- *
  */
 static int
 debug_curl(CURL * curl, curl_infotype type, char *data, size_t size, void *userp)
@@ -137,8 +104,8 @@ debug_curl(CURL * curl, curl_infotype type, char *data, size_t size, void *userp
 		/* ascii on the right */
 		for (c = 0; (c < display_width) && (i + c < size); c++)
 		{
-			char		x = (data[i + c] >= 0x20 && data[i + c] < 0x80) ? data[i + c] : '.';
-
+			char		x = (data[i + c] >= 0x20 && data[i + c] < 0x80) ?
+							 data[i + c] : '.';
 			fputc(x, stderr);
 		}
 		fputc('\n', stderr);	/* newline */
@@ -151,11 +118,6 @@ debug_curl(CURL * curl, curl_infotype type, char *data, size_t size, void *userp
 /*
  * Helper function to make the REST headers. Makes call to the service specific
  * callback to make the headers.
- *
- * @param[in/out]	the curl handle to which headers are to be added.
- * @param[in]		ai_service	pointer to the AIService
- * @return			void
- *
  */
 static void
 make_curl_headers(CURL * curl, AIService * ai_service)
@@ -173,12 +135,6 @@ make_curl_headers(CURL * curl, AIService * ai_service)
 /*
  * Helper function to check the word count to be passed to the service.
  * TODO this has to get the word cound dynamically from the model used
- *
- * @param[in]	text			the string that is to be word counted
- * @param[in]	max_supported	the maximum no of words supported by the
-								service per call.
- * @return		int				zero if valid, non-zero otherwise
- *
  */
 static int
 vaildate_data_size(const char *text, size_t *max_supported)
@@ -191,11 +147,6 @@ vaildate_data_size(const char *text, size_t *max_supported)
 /*
  * The function to make the final REST transfer using curl.
  * TODO get the headers/data request & response with the service callbacks
- *
- * @param[in]	ai_service	pointer to the AIService which for which transfer
- *							is to be made.
- * @return		void
- *
  */
 void
 rest_transfer(AIService * ai_service)
