@@ -248,9 +248,11 @@ void
 gpt_post_header_maker(char *buffer, const size_t maxlen,
 					  const char *data, const size_t len)
 {
-	const char *data_types[] = {JSON_DATA_TYPE_STRING,
+	const char *data_types[] = {
 		JSON_DATA_TYPE_STRING,
-	JSON_DATA_TYPE_INTEGER};
+		JSON_DATA_TYPE_STRING,
+		JSON_DATA_TYPE_INTEGER
+	};
 	const char *keys[] = {GPT_MODEL_KEY, GPT_PROMPT_KEY, GPT_MAX_TOKENS_KEY};
 	const char *values[] = {MODEL_OPENAI_GPT_NAME, data, GPT_MAX_TOKENS_VAUE};
 

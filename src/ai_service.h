@@ -64,12 +64,15 @@ typedef int (*SetAndValidateOptions) (void *service, void *function_params);
 typedef void (*SetServiceBuffers) (RestRequest * rest_request,
 								   RestResponse * rest_response,
 								   ServiceData * service_data);
-typedef int (*AddServiceHeaders) (CURL * curl, struct curl_slist **headers, void *service);
-typedef int (*AddServiceData) (CURL * curl, struct curl_slist **headers, void *service);
+typedef int (*AddServiceHeaders) (CURL * curl, struct curl_slist **headers,
+								  void *service);
+typedef int (*AddServiceData) (CURL * curl, struct curl_slist **headers,
+							   void *service);
 typedef void (*PostHeaderMaker) (char *buffer, const size_t maxlen,
 								 const char *data, const size_t len);
 typedef int (*HandleResponseHeaders) (void *service, void *user_data);
 typedef int (*HandleResponseData) (void *service, void *user_data);
+
 
 /*
  * The master structure that has the "vtable" pointing to the functions of the
@@ -77,34 +80,73 @@ typedef int (*HandleResponseData) (void *service, void *user_data);
  */
 typedef struct AIService
 {
-	/*
-	 * TODO int representation of name and model easier/faster to use than a
-	 */
+	/* flags to represent a AI service */
 	int			service_flags;
+
+	/* flags to represent a model in of the service */
 	int			model_flags;
+
+	/* flags to represent the SQL function being called */
 	int			function_flags;
-	/* PG <-> AIService Interactions - helpers */
-	GetServiceName get_service_name;
-	GetServiceDescription get_service_description;
-	GetModelName get_model_name;
-	GetModelDescription get_model_description;
-	GetServiceHelp get_service_help;
-	InitServiceOptions init_service_options;
-	SetAndValidateOptions set_and_validate_options;
-	InitServiceData init_service_data;
-	RestTransfer rest_transfer;
-	CleanupServiceData cleanup_service_data;
-	/* Curl <-> AIService Interactions */
-	SetServiceBuffers set_service_buffers;
-	HandleResponseHeaders handle_response_headers;
-	HandleResponseData handle_response_data;
-	PostHeaderMaker post_header_maker;
-	AddServiceHeaders add_service_headers;
-	/* service data */
+
+	/* every service gets to maintain its own private data */
 	ServiceData *service_data;
+
+	/* the REST request and response data */
 	RestRequest *rest_request;
 	RestResponse *rest_response;
+
+	/* memory context for this service will be deleted by end of call */
 	MemoryContext memory_context;
+
+	/* PG <-> PgAi Interaction functions to be implemented by every model */
+
+	/* returns the name of the current service */
+	GetServiceName get_service_name;
+
+	/* one line description of the service */
+	GetServiceDescription get_service_description;
+
+	/* model name */
+	GetModelName get_model_name;
+
+	/* one line description of the model in use */
+	GetModelDescription get_model_description;
+
+	/* to return the help text of the model */
+	GetServiceHelp get_service_help;
+
+	/* define the options to be set based on the function flags */
+	InitServiceOptions init_service_options;
+
+	/* validate the options(in case of help() call the options are not set) */
+	SetAndValidateOptions set_and_validate_options;
+
+	/* initialize the service data specific to the model */
+	InitServiceData init_service_data;
+
+	/* the function to make the final REST transfer using curl */
+	RestTransfer rest_transfer;
+
+	/* cleanup the service data */
+	CleanupServiceData cleanup_service_data;
+
+	/* Curl <-> PgAi interaction functions to be implemented by every model */
+
+	/* set the buffers for the REST request and response */
+	SetServiceBuffers set_service_buffers;
+
+	/* call back to add the service/model headers to the curl POST request */
+	AddServiceHeaders add_service_headers;
+
+	/* call back to add data to the curl POST request */
+	PostHeaderMaker post_header_maker;
+
+	/* model call back to handle response headers */
+	HandleResponseHeaders handle_response_headers;
+
+	/* model call back to handle response data */
+	HandleResponseData handle_response_data;
 }			AIService;
 
 #define IS_PG_AI_FUNCTION(flag) (ai_service->function_flags & flag)

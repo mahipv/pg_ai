@@ -79,7 +79,8 @@ read_callback(void *contents, size_t size, size_t nmemb, void *userp)
  * CURLOPT_VERBOSE is set. The data will not be null terminated.
  */
 static int
-debug_curl(CURL * curl, curl_infotype type, char *data, size_t size, void *userp)
+debug_curl(CURL * curl, curl_infotype type, char *data, size_t size,
+		   void *userp)
 {
 	size_t		i;
 	size_t		c;
@@ -104,8 +105,9 @@ debug_curl(CURL * curl, curl_infotype type, char *data, size_t size, void *userp
 		/* ascii on the right */
 		for (c = 0; (c < display_width) && (i + c < size); c++)
 		{
-			char		x = (data[i + c] >= 0x20 && data[i + c] < 0x80) ?
-							 data[i + c] : '.';
+			char		x;
+
+			x = (data[i + c] >= 0x20 && data[i + c] < 0x80) ? data[i + c] : '.';
 			fputc(x, stderr);
 		}
 		fputc('\n', stderr);	/* newline */

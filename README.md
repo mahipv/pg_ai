@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="res/main-logo-transparent.svg" alt="PgAi" height="360" width="360" />
+</p>
+
 # pg_ai
 
 PostgreSQL extension with builtin RAG capabilities, enabling the interpretation and querying of data through both natural language and SQL functions.
