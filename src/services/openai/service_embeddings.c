@@ -15,24 +15,14 @@ define_options(AIService * ai_service)
 {
 	ServiceOption **option_list = &(ai_service->service_data->options);
 
-	/* common options for the services */
-	define_new_option(option_list, OPTION_SERVICE_NAME,
-					  OPTION_SERVICE_NAME_DESC, true /* guc */ ,
-					  true /* required */ , false /* help_display */ );
-	define_new_option(option_list, OPTION_MODEL_NAME,
-					  OPTION_MODEL_NAME_DESC, true /* guc */ ,
-					  true /* required */ , false /* help_display */ );
-	define_new_option(option_list, OPTION_ENDPOINT_URL,
-					  OPTION_ENDPOINT_URL_DESC, true /* guc */ ,
-					  true /* required */ , false /* help_display */ );
-	define_new_option(option_list, OPTION_SERVICE_API_KEY,
-					  OPTION_SERVICE_API_KEY_DESC, true /* guc */ ,
-					  true /* required */ , false /* help_display */ );
+	/* define the common options from the base */
+	ai_service->define_common_options(ai_service);
 
 	/* the vector store to be craeted or queried */
 	define_new_option(option_list, OPTION_STORE_NAME,
-					  OPTION_STORE_NAME_DESC, false /* guc */ ,
-					  true /* required */ , true /* help_display */ );
+					  OPTION_STORE_NAME_DESC,
+					  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
+					  NULL /* storage ptr */ , 0 /* max size */ );
 
 	/*
 	 * vector store creation options: 1.SQL query 2.optional notes on the
@@ -42,11 +32,13 @@ define_options(AIService * ai_service)
 	{
 		/* the query is text and passed to SPI for execution */
 		define_new_option(option_list, OPTION_SQL_QUERY,
-						  OPTION_SQL_QUERY_DESC, false /* guc */ ,
-						  true /* required */ , true /* help_display */ );
+						  OPTION_SQL_QUERY_DESC,
+						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
+						  NULL /* storage ptr */ , 0 /* max size */ );
 		define_new_option(option_list, OPTION_SERVICE_PROMPT,
-						  OPTION_SERVICE_PROMPT_DESC, false /* guc_option */ ,
-						  false /* required */ , true /* help_display */ );
+						  OPTION_SERVICE_PROMPT_DESC,
+						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
+						  NULL /* storage ptr */ , 0 /* max size */ );
 	}
 
 
@@ -57,14 +49,17 @@ define_options(AIService * ai_service)
 	if (ai_service->function_flags & FUNCTION_QUERY_VECTOR_STORE)
 	{
 		define_new_option(option_list, OPTION_NL_QUERY,
-						  OPTION_NL_QUERY_DESC, false /* guc */ ,
-						  true /* required */ , true /* help_display */ );
+						  OPTION_NL_QUERY_DESC,
+						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
+						  NULL /* storage ptr */ , 0 /* max size */ );
 		define_new_option(option_list, OPTION_RECORD_COUNT,
-						  OPTION_RECORD_COUNT_DESC, false /* guc */ ,
-						  true /* required */ , true /* help_display */ );
+						  OPTION_RECORD_COUNT_DESC,
+						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
+						  NULL /* storage ptr */ , 0 /* max size */ );
 		define_new_option(option_list, OPTION_MATCHING_ALGORITHM,
-						  OPTION_MATCHING_ALGORITHM_DESC, false /* guc */ ,
-						  true /* required */ , false /* help_display */ );
+						  OPTION_MATCHING_ALGORITHM_DESC,
+						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
+						  NULL /* storage ptr */ , 0 /* max size */ );
 	}
 }
 
@@ -73,14 +68,18 @@ define_options(AIService * ai_service)
  * Initialize the service options for the embeddings service.
  */
 void
-embeddings_init_service_options(void *service)
+embeddings_initialize_service(void *service)
 {
 	AIService  *ai_service = (AIService *) service;
-	ServiceData *service_data;
 
-	service_data = (ServiceData *) palloc0(sizeof(ServiceData));
-	ai_service->service_data = service_data;
-	/* Define the options for this service */
+	/* TODO : change func signature to return error in mem context is not set */
+	/* the options are stored in service data, allocate before defining */
+	ai_service->service_data = MemoryContextAllocZero
+		(ai_service->memory_context, sizeof(ServiceData));
+	ai_service->service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
+	ai_service->service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
+
+	/* define the options for this service - stored in service data */
 	define_options(ai_service);
 }
 
@@ -110,8 +109,7 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 
 	if (!PG_ARGISNULL(0))
 		set_option_value(options, OPTION_STORE_NAME,
-						 NameStr(*PG_GETARG_NAME(0)), NULL /* value_ptr */ ,
-						 0 /* size */ );
+						 NameStr(*PG_GETARG_NAME(0)), false /* concat */ );
 
 	/* function: create store */
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
@@ -119,12 +117,12 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 		if (!PG_ARGISNULL(1))
 			set_option_value(options, OPTION_SQL_QUERY,
 							 text_to_cstring(PG_GETARG_TEXT_PP(1)),
-							 NULL /* value_ptr */ , 0 /* size */ );
+							 false /* concat */ );
 
 		if (!PG_ARGISNULL(2))
 			set_option_value(options, OPTION_SERVICE_PROMPT,
 							 NameStr(*PG_GETARG_NAME(2)),
-							 NULL /* value_ptr */ , 0 /* size */ );
+							 false /* concat */ );
 	}
 
 	/* function: query store */
@@ -133,7 +131,7 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 		if (!PG_ARGISNULL(1))
 			set_option_value(options, OPTION_NL_QUERY,
 							 text_to_cstring(PG_GETARG_TEXT_PP(1)),
-							 NULL /* value_ptr */ , 0 /* size */ );
+							 false /* concat */ );
 
 		/* limiting the record count out to MAX_COUNT_RECORDS */
 		count = PG_ARGISNULL(2) ? MIN_COUNT_RECORDS : PG_GETARG_INT16((2));
@@ -144,22 +142,23 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 		sprintf(count_str, "%d", count);
 
 		set_option_value(options, OPTION_RECORD_COUNT, count_str,
-						 NULL /* value_ptr */ , 0 /* size */ );
+						 false /* concat */ );
 
 		/* TODO for now only consine similarity is supported */
 		set_option_value(options, OPTION_MATCHING_ALGORITHM,
 						 EMBEDDINGS_COSINE_SIMILARITY,
-						 NULL /* value_ptr */ , 0 /* size */ );
+						 false /* concat */ );
 	}
 
 	/* check if all required options are set */
 	for (options = ai_service->service_data->options; options;
 		 options = options->next)
 	{
-		if (options->required && !options->is_set)
+		if ((options->flags & OPTION_FLAG_REQUIRED) && !(options->flags &
+														 OPTION_FLAG_IS_SET))
 		{
 			ereport(INFO, (errmsg("Required %s option \"%s\" missing.\n",
-								  options->guc_option ? "GUC" : "function", options->name)));
+								  options->flags & OPTION_FLAG_GUC ? "GUC" : "function", options->name)));
 			return RETURN_ERROR;
 		}
 	}
@@ -170,14 +169,8 @@ embeddings_set_and_validate_options(void *service, void *function_options)
  * Function to initialize the service data for the embeddings service.
  */
 int
-embeddings_init_service_data(void *options, void *service, void *file_path)
+embeddings_set_service_data(void *service, void *data)
 {
-	ServiceData *service_data;
-	AIService  *ai_service = (AIService *) service;
-
-	service_data = ai_service->service_data;
-	service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
-	service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
 
 	/* embeddings use pg_vector extension */
 	if (!is_extension_installed(PG_EXTENSION_PG_VECTOR))
@@ -186,6 +179,21 @@ embeddings_init_service_data(void *options, void *service, void *file_path)
 		return RETURN_ERROR;
 	}
 
+	return RETURN_ZERO;
+}
+
+
+/*
+ * Function to prepare the service for data transfer. This function is
+ * called before the transfer is initiated. Create the table to store the
+ * embeddings if the function is to create a vector store.
+ */
+int
+embeddings_prepare_for_transfer(void *service)
+{
+	AIService  *ai_service = (AIService *) service;
+
+	/* TODO check if this has/can to be moved to embeddings_set_data() above */
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
 	{
 		char		query[SQL_QUERY_MAX_LENGTH];
@@ -218,7 +226,9 @@ embeddings_init_service_data(void *options, void *service, void *file_path)
 	}
 	init_rest_transfer((AIService *) ai_service);
 	return RETURN_ZERO;
+
 }
+
 
 /*
 * wrapper to execute the query using SPI

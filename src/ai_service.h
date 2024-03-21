@@ -55,7 +55,8 @@ typedef const char *(*GetModelName) ();
 typedef const char *(*GetModelDescription) ();
 typedef void (*GetServiceHelp) (char *help_text, const size_t max_len);
 typedef void (*InitServiceOptions) (void *ai_service);
-typedef int (*InitServiceData) (void *options, void *ai_service, void *key);
+typedef int (*SetServiceData) (void *ai_service, void *data);
+typedef int (*PrepareForTransfer) (void *ai_service);
 typedef void (*RestTransfer) (void *ai_service);
 typedef int (*CleanupServiceData) (void *ai_service);
 typedef int (*SetAndValidateOptions) (void *service, void *function_params);
@@ -72,7 +73,7 @@ typedef void (*PostHeaderMaker) (char *buffer, const size_t maxlen,
 								 const char *data, const size_t len);
 typedef int (*HandleResponseHeaders) (void *service, void *user_data);
 typedef int (*HandleResponseData) (void *service, void *user_data);
-
+typedef void (*DefineCommonOptions) (void *service);
 
 /*
  * The master structure that has the "vtable" pointing to the functions of the
@@ -122,8 +123,11 @@ typedef struct AIService
 	/* validate the options(in case of help() call the options are not set) */
 	SetAndValidateOptions set_and_validate_options;
 
-	/* initialize the service data specific to the model */
-	InitServiceData init_service_data;
+	/* set the service data specific to the model */
+	SetServiceData set_service_data;
+
+	/* Prepare the data for tarnsfer */
+	PrepareForTransfer prepare_for_transfer;
 
 	/* the function to make the final REST transfer using curl */
 	RestTransfer rest_transfer;
@@ -147,6 +151,10 @@ typedef struct AIService
 
 	/* model call back to handle response data */
 	HandleResponseData handle_response_data;
+
+	/* PgAI internal calls */
+	DefineCommonOptions define_common_options;
+
 }			AIService;
 
 #define IS_PG_AI_FUNCTION(flag) (ai_service->function_flags & flag)
@@ -158,5 +166,6 @@ const char *get_service_name(const AIService * ai_service);
 const char *get_service_description(const AIService * ai_service);
 const char *get_model_name(const AIService * ai_service);
 const char *get_model_description(const AIService * ai_service);
+void		define_common_options(void *ai_service);
 
 #endif							/* _AI_SERVICE_H_ */

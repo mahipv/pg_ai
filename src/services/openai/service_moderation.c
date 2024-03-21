@@ -13,22 +13,13 @@ define_options(AIService * ai_service)
 {
 	ServiceOption **option_list = &(ai_service->service_data->options);
 
-	/* common options for the services */
-	define_new_option(option_list, OPTION_SERVICE_NAME,
-					  OPTION_SERVICE_NAME_DESC, true /* guc */ ,
-					  true /* required */ , false /* help_display */ );
-	define_new_option(option_list, OPTION_MODEL_NAME,
-					  OPTION_MODEL_NAME_DESC, true /* guc */ ,
-					  true /* required */ , false /* help_display */ );
-	define_new_option(option_list, OPTION_ENDPOINT_URL,
-					  OPTION_ENDPOINT_URL_DESC, true /* guc */ ,
-					  true /* required */ , false /* help_display */ );
+	/* define the common options from the base */
+	ai_service->define_common_options(ai_service);
+
 	define_new_option(option_list, OPTION_COLUMN_VALUE,
-					  OPTION_COLUMN_VALUE_DESC, false /* guc */ ,
-					  false /* required */ , true /* help_display */ );
-	define_new_option(option_list, OPTION_SERVICE_API_KEY,
-					  OPTION_SERVICE_API_KEY_DESC, true /* guc */ ,
-					  true /* required */ , false /* help_display */ );
+					  OPTION_COLUMN_VALUE_DESC,
+					  OPTION_FLAG_HELP_DISPLAY,
+					  ai_service->service_data->request, SERVICE_MAX_REQUEST_SIZE);
 }
 
 
@@ -38,14 +29,18 @@ define_options(AIService * ai_service)
 * headers for REST transfer.
 */
 void
-moderation_init_service_options(void *service)
+moderation_initialize_service(void *service)
 {
 	AIService  *ai_service = (AIService *) service;
-	ServiceData *service_data;
 
-	service_data = (ServiceData *) palloc0(sizeof(ServiceData));
-	ai_service->service_data = service_data;
-	/* Define the options for this service */
+	/* TODO : change func signature to return error in mem context is not set */
+	/* the options are stored in service data, allocate before defining */
+	ai_service->service_data = MemoryContextAllocZero
+		(ai_service->memory_context, sizeof(ServiceData));
+	ai_service->service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
+	ai_service->service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
+
+	/* define the options for this service - stored in service data */
 	define_options(ai_service);
 }
 
@@ -69,29 +64,18 @@ moderation_help(char *help_text, const size_t max_len)
 int
 moderation_set_and_validate_options(void *service, void *function_options)
 {
-	PG_FUNCTION_ARGS = (FunctionCallInfo) function_options;
 	AIService  *ai_service = (AIService *) service;
 	ServiceOption *options = ai_service->service_data->options;
-	int			arg_offset;
-
-	/* aggregate functions get an extra argument at position 0 */
-	arg_offset = (ai_service->function_flags &
-				  FUNCTION_GET_INSIGHT_AGGREGATE) ? 1 : 0;
-
-	if ((ai_service->function_flags & FUNCTION_MODERATION) &&
-		(!PG_ARGISNULL(0 + arg_offset)))
-		set_option_value(options, OPTION_COLUMN_VALUE,
-						 text_to_cstring(PG_GETARG_TEXT_P(0 + arg_offset)),
-						 NULL /* value_ptr */ , 0 /* size */ );
 
 	/* check if all required args are set */
 	for (options = ai_service->service_data->options; options;
 		 options = options->next)
 	{
-		if (options->required && !options->is_set)
+		if ((options->flags & OPTION_FLAG_REQUIRED) && !(options->flags &
+														 OPTION_FLAG_IS_SET))
 		{
 			ereport(INFO, (errmsg("Required %s option \"%s\" missing.\n",
-								  options->guc_option ? "GUC" : "function", options->name)));
+								  options->flags & OPTION_FLAG_GUC ? "GUC" : "function", options->name)));
 			return RETURN_ERROR;
 		}
 	}
@@ -106,28 +90,61 @@ moderation_set_and_validate_options(void *service, void *function_options)
  * structures.
  */
 int
-moderation_init_service_data(void *options, void *service, void *data)
+moderation_set_service_data(void *service, void *data)
 {
-	ServiceData *service_data;
-	char	   *column_data;
 	AIService  *ai_service = (AIService *) service;
+	bool		concat = false;
 
-	service_data = ai_service->service_data;
-	if (ai_service->function_flags & FUNCTION_MODERATION)
-		column_data = get_option_value(ai_service->service_data->options, OPTION_COLUMN_VALUE);
-	else
-		column_data = (char *) data;
+	/* if aggregate function then concat */
+	if (ai_service->function_flags & FUNCTION_MODERATION_AGGREGATE)
+		concat = true;
 
-	service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
-	service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
+	/* set or concat the column data to be used in the request */
+	set_option_value(ai_service->service_data->options, OPTION_COLUMN_VALUE,
+					 (char *) data, concat);
 
-	strcat(service_data->request, " \"");
-	strcat(service_data->request, column_data);
-	strcat(service_data->request, "\"");
+	/* ereport(INFO, (errmsg("Data set: %s\n", (char *)data))); */
+	return RETURN_ZERO;
+}
 
-	/* ereport(INFO,(errmsg("Request: %s\n", service_data->request))); */
-	/* print_service_options(service_data->options, 1 ); */
+
+
+/*
+ * Function to prepare the service data for transfer. This function is called
+ * from the PG layer before the REST transfer is initiated. The function
+ * prepares the request data and sets the transfer options.
+ */
+int
+moderation_prepare_for_transfer(void *service)
+{
+	AIService  *ai_service = (AIService *) service;
+	ServiceOption *option_list = ai_service->service_data->options;
+	char		prompt[2];
+	size_t		prompt_len;
+	ServiceOption *option;
+
+	strcpy(prompt, "\"");
+
+	/* check if the column values is too big */
+	prompt_len = strlen(prompt);
+	option = get_option(option_list, OPTION_COLUMN_VALUE);
+	if (!option)
+		ereport(ERROR, (errmsg("Column value option not set.")));
+
+	/* make sure there is enough space for prompt */
+	if (option->current_len + prompt_len + 2 > option->max_len)
+		ereport(ERROR, (errmsg("Column value is too big.")));
+
+	/* move data to include the prompt and close with a '"' */
+	memmove(option->value_ptr + prompt_len, option->value_ptr,
+			option->current_len);
+	memcpy(option->value_ptr, prompt, prompt_len);
+	option->value_ptr[option->current_len + prompt_len] = '"';
+	option->value_ptr[option->current_len + prompt_len + 1] = '\0';
+
+	/* ereport(INFO,(errmsg("Req: %s\n",ai_service->service_data->request))); */
 	init_rest_transfer((AIService *) ai_service);
+
 	return RETURN_ZERO;
 }
 

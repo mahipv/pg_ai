@@ -4,12 +4,12 @@
 #include "ai_service.h"
 
 /* calls made from Pg <-> PgAi */
-void		embeddings_help(char *help_text, const size_t max_len);
-void		embeddings_init_service_options(void *service);
+void		embeddings_initialize_service(void *service);
 int			embeddings_set_and_validate_options(void *service,
 												void *function_options);
-int			embeddings_init_service_data(void *options,
-										 void *ai_service, void *key);
+int			embeddings_set_service_data(void *ai_service, void *data);
+int			embeddings_prepare_for_transfer(void *service);
+void		embeddings_help(char *help_text, const size_t max_len);
 int			embeddings_cleanup_service_data(void *ai_service);
 
 /* call backs from REST <-> PgAi */

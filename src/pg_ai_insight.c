@@ -1,19 +1,19 @@
 #include <postgres.h>
 #include <funcapi.h>
-#include <utils/builtins.h>
 
-#include "rest/rest_transfer.h"
 #include "ai_service.h"
+#include "utils_pg_ai.h"
 #include "guc/pg_ai_guc.h"
+#include "rest/rest_transfer.h"
 
 
 /*
  * The implementation of SQL FUNCTION get_insight. Refer to the .sql file for
  * details on the parameters and return values.
  */
-PG_FUNCTION_INFO_V1(pg_ai_moderation);
+PG_FUNCTION_INFO_V1(pg_ai_insight);
 Datum
-pg_ai_moderation(PG_FUNCTION_ARGS)
+pg_ai_insight(PG_FUNCTION_ARGS)
 {
 	AIService  *ai_service = palloc0(sizeof(AIService));
 	int			return_value;
@@ -35,9 +35,9 @@ pg_ai_moderation(PG_FUNCTION_ARGS)
 	ai_service->memory_context = func_context;
 
 	/* set the function specific flag */
-	ai_service->function_flags |= FUNCTION_MODERATION;
-	return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_MODERATION,
-									  ai_service);
+	ai_service->function_flags |= FUNCTION_GET_INSIGHT;
+	return_value = initialize_service(SERVICE_OPENAI,
+									  MODEL_OPENAI_GPT, ai_service);
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 
@@ -79,9 +79,9 @@ pg_ai_moderation(PG_FUNCTION_ARGS)
  * details on the parameters and return value.
  *
  */
-PG_FUNCTION_INFO_V1(pg_ai_moderation_agg_transfn);
+PG_FUNCTION_INFO_V1(pg_ai_insight_agg_transfn);
 Datum
-pg_ai_moderation_agg_transfn(PG_FUNCTION_ARGS)
+pg_ai_insight_agg_transfn(PG_FUNCTION_ARGS)
 {
 	MemoryContext old_context;
 	MemoryContext agg_context;
@@ -101,10 +101,10 @@ pg_ai_moderation_agg_transfn(PG_FUNCTION_ARGS)
 		ai_service = (AIService *) palloc0(sizeof(AIService));
 		ai_service->memory_context = agg_context;
 
-		ai_service->function_flags |= FUNCTION_MODERATION_AGGREGATE;
+		ai_service->function_flags |= FUNCTION_GET_INSIGHT_AGGREGATE;
 		/* get these settings from guc */
-		return_value = initialize_service(SERVICE_OPENAI,
-										  MODEL_OPENAI_MODERATION, ai_service);
+		return_value = initialize_service(SERVICE_OPENAI, MODEL_OPENAI_GPT,
+										  ai_service);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
 		ai_service->service_data->request[0] = '\0';
@@ -138,9 +138,9 @@ pg_ai_moderation_agg_transfn(PG_FUNCTION_ARGS)
  * the .sql file for details on the parameters and return value.
  *
  */
-PG_FUNCTION_INFO_V1(pg_ai_moderation_agg_finalfn);
+PG_FUNCTION_INFO_V1(pg_ai_insight_agg_finalfn);
 Datum
-pg_ai_moderation_agg_finalfn(PG_FUNCTION_ARGS)
+pg_ai_insight_agg_finalfn(PG_FUNCTION_ARGS)
 {
 	AIService  *ai_service;
 	int			return_value;

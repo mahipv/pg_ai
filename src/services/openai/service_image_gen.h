@@ -4,12 +4,12 @@
 #include "ai_service.h"
 
 /* calls made from Pg <-> PgAi */
-void		image_gen_help(char *help_text, const size_t max_len);
-void		image_gen_init_service_options(void *service);
+void		image_gen_initialize_service(void *service);
 int			image_gen_set_and_validate_options(void *service,
 											   void *function_options);
-int			image_gen_init_service_data(void *options, void *ai_service,
-										void *key);
+int			image_gen_set_service_data(void *ai_service, void *data);
+int			image_gen_prepare_for_transfer(void *ai_service);
+void		image_gen_help(char *help_text, const size_t max_len);
 int			image_gen_cleanup_service_data(void *ai_service);
 
 /* call backs from REST <-> PgAi */

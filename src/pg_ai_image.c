@@ -42,11 +42,18 @@ pg_ai_generate_image(PG_FUNCTION_ARGS)
 	if (return_value)
 		ereport(ERROR, (errmsg("Error: Invalid Options\n")));
 
-	/* initialize the service data to be sent to the AI service	*/
-	return_value = (ai_service->init_service_data) (NULL, ai_service, NULL);
+	/* set the service data to be sent to the AI service	*/
+	return_value = (ai_service->set_service_data)
+		(ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
 	if (return_value)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
-										 service data."));
+										 service data"));
+
+	/* prepare for transfer */
+	return_value = (ai_service->prepare_for_transfer) (ai_service);
+	if (return_value)
+		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
+										 transfer data"));
 
 	/* call the transfer */
 	(ai_service->rest_transfer) (ai_service);
@@ -62,15 +69,6 @@ pg_ai_generate_image(PG_FUNCTION_ARGS)
 }
 
 
-/* structure to save the context for the aggregate function */
-typedef struct AggStateStruct
-{
-	AIService  *ai_service;
-	char		column_data[16 * 1024];
-	char	   *param_file_path;
-}			AggStateStruct;
-
-
 /*
  * The implementation of the aggregate transfer function, called once per
  * row. Refer the SQL FUNCTION _get_insight_agg_transfn in the .sql file for
@@ -81,55 +79,54 @@ PG_FUNCTION_INFO_V1(pg_ai_generate_image_agg_transfn);
 Datum
 pg_ai_generate_image_agg_transfn(PG_FUNCTION_ARGS)
 {
-	MemoryContext agg_context;
 	MemoryContext old_context;
-	AggStateStruct *state_struct;
+	MemoryContext agg_context;
+	AIService  *ai_service;
 	int			return_value;
 
 	if (!AggCheckCallContext(fcinfo, &agg_context))
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("transfn called in non-aggregate context")));
-	if (!AggGetAggref(fcinfo))
-		elog(ERROR, "aggregate called in a non-aggregate context");
+				 errmsg("Function called in non-aggregate context")));
 
-	state_struct = fcinfo->flinfo->fn_extra;
-
+	ai_service = fcinfo->flinfo->fn_extra;
 	/* if this is the first call, set up the query state */
-	if (state_struct == NULL)
+	if (ai_service == NULL)
 	{
-		/* allocate and initialize the query state */
 		old_context = MemoryContextSwitchTo(agg_context);
-		state_struct = (AggStateStruct *) palloc0(sizeof(AggStateStruct));
-		*state_struct->column_data = '\0';
-		state_struct->ai_service = (AIService *) palloc0(sizeof(AIService));
+		ai_service = (AIService *) palloc0(sizeof(AIService));
+		ai_service->memory_context = agg_context;
 
-		state_struct->ai_service->function_flags |= FUNCTION_GENERATE_IMAGE_AGGREGATE;
+		ai_service->function_flags |= FUNCTION_GENERATE_IMAGE_AGGREGATE;
+		/* get these settings from guc */
 		return_value = initialize_service(SERVICE_OPENAI,
-										  MODEL_OPENAI_IMAGE_GEN,
-										  state_struct->ai_service);
+										  MODEL_OPENAI_IMAGE_GEN, ai_service);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
+		ai_service->service_data->request[0] = '\0';
 
-		return_value = (state_struct->ai_service->set_and_validate_options)
-			(state_struct->ai_service, fcinfo);
+		return_value = (ai_service->set_and_validate_options)
+			(ai_service, fcinfo);
 		if (return_value)
 			PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
 
 		MemoryContextSwitchTo(old_context);
-		fcinfo->flinfo->fn_extra = state_struct;
+		fcinfo->flinfo->fn_extra = ai_service;
 	}
 
 	/* accumulate non NULL values */
 	if (!PG_ARGISNULL(1))
 	{
-		strcat(state_struct->column_data,
-			   TextDatumGetCString(PG_GETARG_DATUM(1)));
-		strcat(state_struct->column_data, " ");
-		/* ereport(INFO,(errmsg("%s\n",state_struct->column_data))); */
+		/* set the service data to be sent to the AI service	*/
+		return_value = (ai_service->set_service_data)
+			(ai_service, text_to_cstring(PG_GETARG_TEXT_P(1)));
+		if (return_value)
+			PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
+											 service data"));
 	}
 
-	PG_RETURN_POINTER(state_struct);
+	PG_RETURN_POINTER(ai_service);
+
 }
 
 /*
@@ -142,39 +139,24 @@ PG_FUNCTION_INFO_V1(pg_ai_generate_image_agg_finalfn);
 Datum
 pg_ai_generate_image_agg_finalfn(PG_FUNCTION_ARGS)
 {
-	MemoryContext agg_context;
-	MemoryContext old_context;
-	AggStateStruct *state_struct;
+	AIService  *ai_service;
 	int			return_value;
+	text	   *return_text;
 
-	if (!AggCheckCallContext(fcinfo, &agg_context))
-		ereport(ERROR,
-				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-				 errmsg("called in non-aggregate context")));
-
-	state_struct = (AggStateStruct *) PG_GETARG_POINTER(0);
-	if (state_struct == NULL)
+	ai_service = (AIService *) PG_GETARG_POINTER(0);
+	if (ai_service == NULL)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal Error"));
 
-	if (state_struct->ai_service == NULL)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal Error"));
-
-	/* the service was not initialized */
-	if (state_struct->ai_service->get_service_name == NULL)
-		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
-
-	old_context = MemoryContextSwitchTo(agg_context);
-
-	return_value = (state_struct->ai_service->init_service_data)
-		(NULL, state_struct->ai_service, state_struct->column_data);
+	/* prepare for transfer */
+	return_value = (ai_service->prepare_for_transfer) (ai_service);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot initialize \
-										 service data."));
+		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
+										 transfer data"));
 
-	/* ereport(INFO,(errmsg("Final :%s\n",state_struct->column_data))); */
 	/* call the transfer */
-	(state_struct->ai_service->rest_transfer) (state_struct->ai_service);
+	(ai_service->rest_transfer) (ai_service);
 
-	MemoryContextSwitchTo(old_context);
-	PG_RETURN_TEXT_P(cstring_to_text((char *) (state_struct->ai_service->rest_response->data)));
+	return_text = cstring_to_text((char *) (ai_service->rest_response->data));
+
+	PG_RETURN_TEXT_P(return_text);
 }

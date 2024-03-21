@@ -54,11 +54,13 @@
 #define MAX_COUNT_RECORDS 10
 /* ----------------- embeddings service >8---------- */
 
+
 /*--------------8< Image Gen service --------------*/
 #define  MODEL_OPENAI_IMAGE_GEN_NAME "dall-e-3"
 #define  MODEL_OPENAI_IMAGE_GEN_DESCRIPTION "OpenAI's text-to-image model"
+
+#define IMAGE_GEN_PROMPT "Make a picture of the following"
 #define IMAGE_GEN_AGG_PROMPT "Make a picture with the following"
-#define IMAGE_GEN_PROMPT "Make a picture with the following"
 #define IMAGE_GEN_API_URL "https://api.openai.com/v1/images/generations"
 
 #define RESPONSE_JSON_DATA "data"

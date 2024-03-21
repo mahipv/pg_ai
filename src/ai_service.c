@@ -25,11 +25,13 @@ static int
 initialize_gpt(AIService * ai_service)
 {
 	/* PG <-> PG_AI functions */
-	ai_service->get_service_help = gpt_help;
-	ai_service->init_service_options = gpt_init_service_options;
+	ai_service->init_service_options = gpt_initialize_service;
 	ai_service->set_and_validate_options = gpt_set_and_validate_options;
-	ai_service->init_service_data = gpt_init_service_data;
+	ai_service->set_service_data = gpt_set_service_data;
+	ai_service->prepare_for_transfer = gpt_prepare_for_transfer;
+	ai_service->get_service_help = gpt_help;
 	ai_service->cleanup_service_data = gpt_cleanup_service_data;
+
 
 	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = gpt_set_service_buffers;
@@ -47,11 +49,13 @@ static int
 initialize_image_generator(AIService * ai_service)
 {
 	/* PG <-> PG_AI functions */
-	ai_service->get_service_help = image_gen_help;
-	ai_service->init_service_options = image_gen_init_service_options;
+	ai_service->init_service_options = image_gen_initialize_service;
 	ai_service->set_and_validate_options = image_gen_set_and_validate_options;
-	ai_service->init_service_data = image_gen_init_service_data;
+	ai_service->set_service_data = image_gen_set_service_data;
+	ai_service->prepare_for_transfer = image_gen_prepare_for_transfer;
+	ai_service->get_service_help = image_gen_help;
 	ai_service->cleanup_service_data = image_gen_cleanup_service_data;
+
 
 	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = image_gen_set_service_buffers;
@@ -69,10 +73,11 @@ static int
 initialize_embeddings(AIService * ai_service)
 {
 	/* PG <-> PG_AI functions */
-	ai_service->get_service_help = embeddings_help;
-	ai_service->init_service_options = embeddings_init_service_options;
+	ai_service->init_service_options = embeddings_initialize_service;
 	ai_service->set_and_validate_options = embeddings_set_and_validate_options;
-	ai_service->init_service_data = embeddings_init_service_data;
+	ai_service->set_service_data = embeddings_set_service_data;
+	ai_service->prepare_for_transfer = embeddings_prepare_for_transfer;
+	ai_service->get_service_help = embeddings_help;
 	ai_service->cleanup_service_data = embeddings_cleanup_service_data;
 
 	/* PG_AI <-> REST functions */
@@ -90,10 +95,11 @@ static int
 initialize_moderation(AIService * ai_service)
 {
 	/* PG <-> PG_AI functions */
-	ai_service->get_service_help = moderation_help;
-	ai_service->init_service_options = moderation_init_service_options;
+	ai_service->init_service_options = moderation_initialize_service;
 	ai_service->set_and_validate_options = moderation_set_and_validate_options;
-	ai_service->init_service_data = moderation_init_service_data;
+	ai_service->set_service_data = moderation_set_service_data;
+	ai_service->prepare_for_transfer = moderation_prepare_for_transfer;
+	ai_service->get_service_help = moderation_help;
 	ai_service->cleanup_service_data = moderation_cleanup_service_data;
 
 	/* PG_AI <-> REST functions */
@@ -167,6 +173,8 @@ initialize_service(const int service_flags, const int model_flags,
 		ai_service->get_service_description = get_service_description;
 		ai_service->get_model_name = get_model_name;
 		ai_service->get_model_description = get_model_description;
+		ai_service->define_common_options = define_common_options;
+
 		/* initialize service data and define options for the service */
 		(ai_service->init_service_options) (ai_service);
 
@@ -175,20 +183,19 @@ initialize_service(const int service_flags, const int model_flags,
 			   service_description);
 		strcpy(ai_service->service_data->model_description, model_description);
 		set_option_value(ai_service->service_data->options,
-						 OPTION_SERVICE_NAME, service_name, NULL /* value_ptr */ ,
-						 0 /* size */ );
+						 OPTION_SERVICE_NAME, service_name,
+						 false /* concat */ );
 		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME,
-						 model_name, NULL /* value_ptr */ , 0 /* size */ );
+						 model_name, false /* concat */ );
 		set_option_value(ai_service->service_data->options,
-						 OPTION_ENDPOINT_URL, model_url, NULL /* value_ptr */ ,
-						 0 /* size */ );
+						 OPTION_ENDPOINT_URL, model_url, false /* concat */ );
 
 		/* set the API key if it is available in a GUC */
 		api_key = get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY);
 		if (api_key)
 			set_option_value(ai_service->service_data->options,
 							 OPTION_SERVICE_API_KEY, api_key,
-							 NULL /* value_ptr */ , 0 /* size */ );
+							 false /* concat */ );
 	}
 	return return_value;
 }
@@ -231,4 +238,37 @@ const char *
 get_model_description(const AIService * ai_service)
 {
 	return (ai_service->service_data->model_description);
+}
+
+
+/*
+* Define the common options for the services and models.
+*/
+void
+define_common_options(void *service)
+{
+	AIService  *ai_service = (AIService *) service;
+	ServiceOption **option_list = &(ai_service->service_data->options);
+
+	/* common options for the services */
+	define_new_option(option_list, OPTION_SERVICE_NAME,
+					  OPTION_SERVICE_NAME_DESC,
+					  OPTION_FLAG_REQUIRED | OPTION_FLAG_GUC,
+					  NULL /* storage ptr */ , 0 /* max size */ );
+
+	define_new_option(option_list, OPTION_MODEL_NAME,
+					  OPTION_MODEL_NAME_DESC,
+					  OPTION_FLAG_REQUIRED | OPTION_FLAG_GUC,
+					  NULL /* storage ptr */ , 0 /* max size */ );
+
+	define_new_option(option_list, OPTION_ENDPOINT_URL,
+					  OPTION_ENDPOINT_URL_DESC,
+					  OPTION_FLAG_REQUIRED | OPTION_FLAG_GUC,
+					  NULL /* storage ptr */ , 0 /* max size */ );
+
+	define_new_option(option_list, OPTION_SERVICE_API_KEY,
+					  OPTION_SERVICE_API_KEY_DESC,
+					  OPTION_FLAG_REQUIRED | OPTION_FLAG_GUC,
+					  NULL /* storage ptr */ , 0 /* max size */ );
+
 }

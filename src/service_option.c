@@ -18,8 +18,8 @@ get_new_node()
  */
 void
 define_new_option(ServiceOption * *option_list, const char *name,
-				  char *description, const bool guc_option,
-				  const bool required, const bool help_display)
+				  char *description, const uint32_t flags, char *storage_ptr,
+				  const size_t max_storage_size)
 {
 
 	ServiceOption *header = *option_list;
@@ -27,18 +27,34 @@ define_new_option(ServiceOption * *option_list, const char *name,
 
 	strncpy(new_node->name, name, OPTION_NAME_LEN);
 	strncpy(new_node->description, description, OPTION_VALUE_LEN);
-	new_node->guc_option = guc_option;
-	new_node->required = required;
-	new_node->is_set = false;
-	new_node->help_display = help_display;
+	new_node->flags = flags;
 	new_node->value_ptr = NULL;
 
+	/* insert the node in the list */
 	*option_list = new_node;
 	if (header)
 	{
 		new_node->next = header;
 		header->prev = new_node;
 	}
+
+	/*
+	 * If a storage ptr is passed reuse the same (optimization to avoid
+	 * duplicate copies) otherwise allocate a new memory.
+	 */
+	if (storage_ptr)
+	{
+		new_node->value_ptr = storage_ptr;
+		new_node->max_len = max_storage_size;
+	}
+	else
+	{
+		new_node->value_ptr = palloc0(OPTION_VALUE_LEN);
+		new_node->max_len = OPTION_VALUE_LEN;
+	}
+
+	/* initialize for a concat */
+	new_node->value_ptr[0] = '\0';
 }
 
 
@@ -50,29 +66,36 @@ define_new_option(ServiceOption * *option_list, const char *name,
  */
 int
 set_option_value(ServiceOption * list, const char *name, const char *value,
-				 char *value_ptr, const size_t data_size)
+				 bool concat)
 {
 	ServiceOption *node = list;
-	int			found = 0;
-	size_t		max_len;
+	bool		found = false;
+	size_t		len;
 
 	while (node && !found)
 	{
 		if (!strcmp(name, node->name))
 		{
-			if (value_ptr)
+			len = strlen(value);
+
+			if ((concat) && (node->current_len + len > node->max_len))
+				ereport(ERROR, (errmsg("Value for option %s is too long",
+									   name)));
+
+			if (concat)
 			{
-				node->value_ptr = value_ptr;
-				max_len = data_size;
+				strcat(node->value_ptr, " ");
+				strncat(node->value_ptr, value, len);
+				node->current_len += len + 1;
 			}
 			else
 			{
-				node->value_ptr = palloc0(OPTION_VALUE_LEN);
-				max_len = OPTION_VALUE_LEN;
+				strncpy(node->value_ptr, value, len);
+				node->current_len = len;
 			}
-			strncpy(node->value_ptr, value, max_len);
-			node->is_set = true;
-			found = 1;
+
+			node->flags |= OPTION_FLAG_IS_SET;
+			found = true;
 			break;
 		}
 		node = node->next;
@@ -94,6 +117,64 @@ get_option_value(ServiceOption * list, const char *name)
 	{
 		if (!strcmp(name, node->name))
 			return node->value_ptr;
+		node = node->next;
+	}
+
+	return NULL;
+}
+
+
+/*
+* Get the length of the value for a particular option, -1 if the option is
+* not found.
+*/
+int
+get_option_value_length(ServiceOption * list, const char *name)
+{
+	ServiceOption *node = list;
+
+	while (node)
+	{
+		if (!strcmp(name, node->name))
+			return node->current_len;
+		node = node->next;
+	}
+
+	return -1;
+}
+
+
+/*
+* Get the max length of the value for a particular option, -1 if the option is
+* not found.
+*/
+int
+get_option_value_max_length(ServiceOption * list, const char *name)
+{
+	ServiceOption *node = list;
+
+	while (node)
+	{
+		if (!strcmp(name, node->name))
+			return node->max_len;
+		node = node->next;
+	}
+
+	return -1;
+}
+
+/*
+* Get the option node for a particular option, NULL if the option is not found.
+*/
+ServiceOption *
+get_option(ServiceOption * list, const char *name)
+{
+	ServiceOption *node = list;
+
+	while (node)
+	{
+		if (!strcmp(name, node->name))
+			return node;
 		node = node->next;
 	}
 
@@ -127,7 +208,7 @@ print_service_options(ServiceOption * list, bool print_value, char *text, size_t
 		/* print all options in case of console */
 		if (!text)
 			ereport(INFO, (errmsg("%s", option_info)));
-		else if (last_node->help_display)
+		else if (last_node->flags & OPTION_FLAG_HELP_DISPLAY)
 			strncat(text, option_info, max_len);
 
 		last_node = last_node->prev;
