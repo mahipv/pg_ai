@@ -11,8 +11,7 @@
 /*
  * Clear the AIService data
  */
-void
-reset_service(AIService * ai_service)
+void reset_service(AIService *ai_service)
 {
 	if (ai_service->memory_context)
 		MemoryContextReset(ai_service->memory_context);
@@ -21,8 +20,7 @@ reset_service(AIService * ai_service)
 /*
  * Initialize AIService vtable with the function from the ChatGPT service.
  */
-static int
-initialize_gpt(AIService * ai_service)
+static int initialize_gpt(AIService *ai_service)
 {
 	/* PG <-> PG_AI functions */
 	ai_service->init_service_options = gpt_initialize_service;
@@ -31,7 +29,6 @@ initialize_gpt(AIService * ai_service)
 	ai_service->prepare_for_transfer = gpt_prepare_for_transfer;
 	ai_service->get_service_help = gpt_help;
 	ai_service->cleanup_service_data = gpt_cleanup_service_data;
-
 
 	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = gpt_set_service_buffers;
@@ -45,8 +42,7 @@ initialize_gpt(AIService * ai_service)
 /*
  * Initialize AIService vtable with the function from the dall-e-2 service.
  */
-static int
-initialize_image_generator(AIService * ai_service)
+static int initialize_image_generator(AIService *ai_service)
 {
 	/* PG <-> PG_AI functions */
 	ai_service->init_service_options = image_gen_initialize_service;
@@ -55,7 +51,6 @@ initialize_image_generator(AIService * ai_service)
 	ai_service->prepare_for_transfer = image_gen_prepare_for_transfer;
 	ai_service->get_service_help = image_gen_help;
 	ai_service->cleanup_service_data = image_gen_cleanup_service_data;
-
 
 	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = image_gen_set_service_buffers;
@@ -69,8 +64,7 @@ initialize_image_generator(AIService * ai_service)
 /*
  * Initialize AIService vtable with functions from the embeddings service.
  */
-static int
-initialize_embeddings(AIService * ai_service)
+static int initialize_embeddings(AIService *ai_service)
 {
 	/* PG <-> PG_AI functions */
 	ai_service->init_service_options = embeddings_initialize_service;
@@ -91,8 +85,7 @@ initialize_embeddings(AIService * ai_service)
 /*
  * Initialize AIService vtable with the function from the moderation service.
  */
-static int
-initialize_moderation(AIService * ai_service)
+static int initialize_moderation(AIService *ai_service)
 {
 	/* PG <-> PG_AI functions */
 	ai_service->init_service_options = moderation_initialize_service;
@@ -111,21 +104,19 @@ initialize_moderation(AIService * ai_service)
 	return 0;
 }
 
-
 /*
  * Initialize the AIService based on the service parameter.
  */
-int
-initialize_service(const int service_flags, const int model_flags,
-				   AIService * ai_service)
+int initialize_service(const int service_flags, const int model_flags,
+					   AIService *ai_service)
 {
-	int			return_value = RETURN_ERROR;
-	char		service_name[PG_AI_NAME_LENGTH];
-	char		service_description[PG_AI_DESC_LENGTH];
-	char		model_name[PG_AI_NAME_LENGTH];
-	char		model_description[PG_AI_DESC_LENGTH];
-	char		model_url[SERVICE_DATA_SIZE];
-	char	   *api_key;
+	int return_value = RETURN_ERROR;
+	char service_name[PG_AI_NAME_LENGTH];
+	char service_description[PG_AI_DESC_LENGTH];
+	char model_name[PG_AI_NAME_LENGTH];
+	char model_description[PG_AI_DESC_LENGTH];
+	char model_url[SERVICE_DATA_SIZE];
+	char *api_key;
 
 	/* initialize the service based on the service and model flags */
 	if (service_flags & SERVICE_OPENAI)
@@ -176,99 +167,88 @@ initialize_service(const int service_flags, const int model_flags,
 		ai_service->define_common_options = define_common_options;
 
 		/* initialize service data and define options for the service */
-		(ai_service->init_service_options) (ai_service);
+		(ai_service->init_service_options)(ai_service);
 
 		/* set the constant model specific info and options */
 		strcpy(ai_service->service_data->service_description,
 			   service_description);
 		strcpy(ai_service->service_data->model_description, model_description);
-		set_option_value(ai_service->service_data->options,
-						 OPTION_SERVICE_NAME, service_name,
-						 false /* concat */ );
+		set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME,
+						 service_name, false /* concat */);
 		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME,
-						 model_name, false /* concat */ );
-		set_option_value(ai_service->service_data->options,
-						 OPTION_ENDPOINT_URL, model_url, false /* concat */ );
+						 model_name, false /* concat */);
+		set_option_value(ai_service->service_data->options, OPTION_ENDPOINT_URL,
+						 model_url, false /* concat */);
 
 		/* set the API key if it is available in a GUC */
 		api_key = get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY);
 		if (api_key)
 			set_option_value(ai_service->service_data->options,
 							 OPTION_SERVICE_API_KEY, api_key,
-							 false /* concat */ );
+							 false /* concat */);
 	}
 	return return_value;
 }
 
-
 /*
  * Generic callback to return the AI service's provider.
  */
-const char *
-get_service_name(const AIService * ai_service)
+const char *get_service_name(const AIService *ai_service)
 {
-	return (get_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME));
+	return (get_option_value(ai_service->service_data->options,
+							 OPTION_SERVICE_NAME));
 }
-
 
 /*
  * Generic callback to return the AI service description.
  */
-const char *
-get_service_description(const AIService * ai_service)
+const char *get_service_description(const AIService *ai_service)
 {
 	return (ai_service->service_data->service_description);
 }
 
-
 /*
  * Generic callback to return the AI model name.
  */
-const char *
-get_model_name(const AIService * ai_service)
+const char *get_model_name(const AIService *ai_service)
 {
-	return (get_option_value(ai_service->service_data->options, OPTION_MODEL_NAME));
+	return (
+		get_option_value(ai_service->service_data->options, OPTION_MODEL_NAME));
 }
-
 
 /*
  * Generic callback to return the AI model description.
  */
-const char *
-get_model_description(const AIService * ai_service)
+const char *get_model_description(const AIService *ai_service)
 {
 	return (ai_service->service_data->model_description);
 }
 
-
 /*
-* Define the common options for the services and models.
-*/
-void
-define_common_options(void *service)
+ * Define the common options for the services and models.
+ */
+void define_common_options(void *service)
 {
-	AIService  *ai_service = (AIService *) service;
+	AIService *ai_service = (AIService *)service;
 	ServiceOption **option_list = &(ai_service->service_data->options);
 
 	/* common options for the services */
 	define_new_option(option_list, OPTION_SERVICE_NAME,
 					  OPTION_SERVICE_NAME_DESC,
 					  OPTION_FLAG_REQUIRED | OPTION_FLAG_GUC,
-					  NULL /* storage ptr */ , 0 /* max size */ );
+					  NULL /* storage ptr */, 0 /* max size */);
 
-	define_new_option(option_list, OPTION_MODEL_NAME,
-					  OPTION_MODEL_NAME_DESC,
+	define_new_option(option_list, OPTION_MODEL_NAME, OPTION_MODEL_NAME_DESC,
 					  OPTION_FLAG_REQUIRED | OPTION_FLAG_GUC,
-					  NULL /* storage ptr */ , 0 /* max size */ );
+					  NULL /* storage ptr */, 0 /* max size */);
 
 	define_new_option(option_list, OPTION_ENDPOINT_URL,
 					  OPTION_ENDPOINT_URL_DESC,
 					  OPTION_FLAG_REQUIRED | OPTION_FLAG_GUC,
-					  NULL /* storage ptr */ , 0 /* max size */ );
+					  NULL /* storage ptr */, 0 /* max size */);
 
 	define_new_option(option_list, OPTION_SERVICE_API_KEY,
 					  OPTION_SERVICE_API_KEY_DESC,
 					  OPTION_FLAG_REQUIRED | OPTION_FLAG_GUC,
-					  NULL /* storage ptr */ , 0 /* max size */ );
-
+					  NULL /* storage ptr */, 0 /* max size */);
 }

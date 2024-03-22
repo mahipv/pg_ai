@@ -4,30 +4,27 @@
 
 #include "ai_service.h"
 
-
 /*
  * Implementation of SQL FUNCTION pg_ai_help().
  */
 PG_FUNCTION_INFO_V1(pg_ai_help);
-Datum
-pg_ai_help(PG_FUNCTION_ARGS)
+Datum pg_ai_help(PG_FUNCTION_ARGS)
 {
-	AIService  *ai_service = palloc(sizeof(AIService));
-	char	   *display_string = palloc0(MAX_HELP_TEXT_SIZE);
-	size_t		running_length = 0;
-	int			return_value = 0;
-	char	   *help_text;
-	char	   *service_options;
-	int			service_flags = 0x1;
-	int			model_flags = 0x1;
-	bool		all_services_done = false;
-	int			count = 1;
+	AIService *ai_service = palloc(sizeof(AIService));
+	char *display_string = palloc0(MAX_HELP_TEXT_SIZE);
+	size_t running_length = 0;
+	int return_value = 0;
+	char *help_text;
+	char *service_options;
+	int service_flags = 0x1;
+	int model_flags = 0x1;
+	bool all_services_done = false;
+	int count = 1;
 	MemoryContext help_context;
 
 	/* Create a new memory context for the help text */
-	help_context = AllocSetContextCreate(CurrentMemoryContext,
-										 "AI Help Context",
-										 ALLOCSET_DEFAULT_SIZES);
+	help_context = AllocSetContextCreate(
+		CurrentMemoryContext, "AI Help Context", ALLOCSET_DEFAULT_SIZES);
 	ai_service->memory_context = help_context;
 
 	/* Loop through all the services and models and initialize them */
@@ -38,9 +35,9 @@ pg_ai_help(PG_FUNCTION_ARGS)
 		{
 			/* set all function falgs to define and display all options */
 			ai_service->function_flags |= ~0;
-			return_value = initialize_service(service_flags, model_flags,
-											  ai_service);
-			if (return_value)	/* no service */
+			return_value =
+				initialize_service(service_flags, model_flags, ai_service);
+			if (return_value) /* no service */
 			{
 				/* if no models are supported then this service beyond last */
 				if (model_flags & 0x01)
@@ -50,28 +47,30 @@ pg_ai_help(PG_FUNCTION_ARGS)
 			}
 
 			/* Add the service and model information to the display string */
-			running_length += snprintf(display_string + running_length,
-									   MAX_HELP_TEXT_SIZE - running_length,
-									   "\n\n%c.\nService: %s  Info: %s\nModel: %s  Info: %s\n",
-									   (count++ + '0'), ai_service->get_service_name(ai_service),
-									   ai_service->get_service_description(ai_service),
-									   ai_service->get_model_name(ai_service),
-									   ai_service->get_model_description(ai_service));
+			running_length += snprintf(
+				display_string + running_length,
+				MAX_HELP_TEXT_SIZE - running_length,
+				"\n\n%c.\nService: %s  Info: %s\nModel: %s  Info: %s\n",
+				(count++ + '0'), ai_service->get_service_name(ai_service),
+				ai_service->get_service_description(ai_service),
+				ai_service->get_model_name(ai_service),
+				ai_service->get_model_description(ai_service));
 
 			/* Add the help text returned by the service */
 			help_text = MemoryContextAlloc(ai_service->memory_context,
 										   MAX_HELP_TEXT_SIZE);
 			ai_service->get_service_help(help_text, MAX_HELP_TEXT_SIZE);
-			running_length += snprintf(display_string + running_length,
-									   MAX_HELP_TEXT_SIZE - running_length,
-									   "%s", help_text);
+			running_length +=
+				snprintf(display_string + running_length,
+						 MAX_HELP_TEXT_SIZE - running_length, "%s", help_text);
 			pfree(help_text);
 
 			/* Add the service options to the display string */
 			service_options = MemoryContextAlloc(ai_service->memory_context,
 												 MAX_HELP_TEXT_SIZE);
 			print_service_options(ai_service->service_data->options,
-								  false /* print_value */ , service_options, MAX_HELP_TEXT_SIZE);
+								  false /* print_value */, service_options,
+								  MAX_HELP_TEXT_SIZE);
 			running_length += snprintf(display_string + running_length,
 									   MAX_HELP_TEXT_SIZE - running_length,
 									   "\nParameters: %s\n\n", service_options);

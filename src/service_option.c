@@ -5,23 +5,19 @@
 /*
  * Allocate a new ServiceOption node.
  */
-static ServiceOption *
-get_new_node()
+static ServiceOption *get_new_node()
 {
-	return ((ServiceOption *) palloc0(sizeof(ServiceOption)));
+	return ((ServiceOption *)palloc0(sizeof(ServiceOption)));
 }
-
 
 /*
  * Function to define a service specific option and add it to the list of
  * options at the front.
  */
-void
-define_new_option(ServiceOption * *option_list, const char *name,
-				  char *description, const uint32_t flags, char *storage_ptr,
-				  const size_t max_storage_size)
+void define_new_option(ServiceOption **option_list, const char *name,
+					   char *description, const uint32_t flags,
+					   char *storage_ptr, const size_t max_storage_size)
 {
-
 	ServiceOption *header = *option_list;
 	ServiceOption *new_node = get_new_node();
 
@@ -57,20 +53,18 @@ define_new_option(ServiceOption * *option_list, const char *name,
 	new_node->value_ptr[0] = '\0';
 }
 
-
 /*
  * Set the value for a particular option. If value_ptr is NULL, a new memory
  * is allocated and the value is copied to it. Otherwise, the value_ptr is
  * used to store the value. data_size is used to check the max length of the
  * value_ptr.
  */
-int
-set_option_value(ServiceOption * list, const char *name, const char *value,
-				 bool concat)
+int set_option_value(ServiceOption *list, const char *name, const char *value,
+					 bool concat)
 {
 	ServiceOption *node = list;
-	bool		found = false;
-	size_t		len;
+	bool found = false;
+	size_t len;
 
 	while (node && !found)
 	{
@@ -79,8 +73,8 @@ set_option_value(ServiceOption * list, const char *name, const char *value,
 			len = strlen(value);
 
 			if ((concat) && (node->current_len + len > node->max_len))
-				ereport(ERROR, (errmsg("Value for option %s is too long",
-									   name)));
+				ereport(ERROR,
+						(errmsg("Value for option %s is too long", name)));
 
 			if (concat)
 			{
@@ -104,12 +98,10 @@ set_option_value(ServiceOption * list, const char *name, const char *value,
 	return !found;
 }
 
-
 /*
  * Get the value for a particular option, NULL if the option is not found.
  */
-char *
-get_option_value(ServiceOption * list, const char *name)
+char *get_option_value(ServiceOption *list, const char *name)
 {
 	ServiceOption *node = list;
 
@@ -123,13 +115,11 @@ get_option_value(ServiceOption * list, const char *name)
 	return NULL;
 }
 
-
 /*
-* Get the length of the value for a particular option, -1 if the option is
-* not found.
-*/
-int
-get_option_value_length(ServiceOption * list, const char *name)
+ * Get the length of the value for a particular option, -1 if the option is
+ * not found.
+ */
+int get_option_value_length(ServiceOption *list, const char *name)
 {
 	ServiceOption *node = list;
 
@@ -143,13 +133,11 @@ get_option_value_length(ServiceOption * list, const char *name)
 	return -1;
 }
 
-
 /*
-* Get the max length of the value for a particular option, -1 if the option is
-* not found.
-*/
-int
-get_option_value_max_length(ServiceOption * list, const char *name)
+ * Get the max length of the value for a particular option, -1 if the option is
+ * not found.
+ */
+int get_option_value_max_length(ServiceOption *list, const char *name)
 {
 	ServiceOption *node = list;
 
@@ -164,10 +152,9 @@ get_option_value_max_length(ServiceOption * list, const char *name)
 }
 
 /*
-* Get the option node for a particular option, NULL if the option is not found.
-*/
-ServiceOption *
-get_option(ServiceOption * list, const char *name)
+ * Get the option node for a particular option, NULL if the option is not found.
+ */
+ServiceOption *get_option(ServiceOption *list, const char *name)
 {
 	ServiceOption *node = list;
 
@@ -181,17 +168,16 @@ get_option(ServiceOption * list, const char *name)
 	return NULL;
 }
 
-
 /*
  * Print the service options to the console or to a text buffer. If print_value
  * is true, the value of the option is printed, otherwise the description is
  * printed.
  */
-void
-print_service_options(ServiceOption * list, bool print_value, char *text, size_t max_len)
+void print_service_options(ServiceOption *list, bool print_value, char *text,
+						   size_t max_len)
 {
 	ServiceOption *last_node = list;
-	char		option_info[OPTION_NAME_LEN + OPTION_VALUE_LEN + 8];
+	char option_info[OPTION_NAME_LEN + OPTION_VALUE_LEN + 8];
 
 	/* options are added to the front display from last to get the same order */
 	while (last_node && last_node->next)
@@ -201,9 +187,11 @@ print_service_options(ServiceOption * list, bool print_value, char *text, size_t
 	{
 		/* TODO print value by default if DEBUG */
 		if (print_value)
-			sprintf(option_info, "\n%s: %s", last_node->name, last_node->value_ptr);
+			sprintf(option_info, "\n%s: %s", last_node->name,
+					last_node->value_ptr);
 		else
-			sprintf(option_info, "\n%s: %s", last_node->name, last_node->description);
+			sprintf(option_info, "\n%s: %s", last_node->name,
+					last_node->description);
 
 		/* print all options in case of console */
 		if (!text)

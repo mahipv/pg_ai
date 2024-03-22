@@ -12,14 +12,6 @@
 PG_MODULE_MAGIC;
 #endif
 
-void
-_PG_init(void)
-{
-	define_pg_ai_guc_variables();
-}
+void _PG_init(void) { define_pg_ai_guc_variables(); }
 
-void
-_PG_fini(void)
-{
-
-}
+void _PG_fini(void) {}

@@ -1,0 +1,32 @@
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass:      true
+  AfterControlStatement: true
+  AfterEnum:       true
+  AfterFunction:   true
+  AfterNamespace:  true
+  AfterObjCDeclaration: true
+  AfterStruct:     true
+  AfterUnion:      true
+  AfterExternBlock: true
+  BeforeCatch:     true
+  BeforeElse:      true
+  IndentBraces:    false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Custom
+BreakBeforeTernaryOperators: false
+BreakStringLiterals: true
+ColumnLimit: 80
+IndentCaseLabels: true
+IndentPPDirectives: None
+IndentWidth: 4
+KeepEmptyLinesAtTheStartOfBlocks: false
+PointerAlignment: Right 
+ReflowComments:  true
+TabWidth: 4
+SortIncludes: false
+UseCRLF: false
+UseTab: Always

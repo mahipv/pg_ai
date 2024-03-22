@@ -5,13 +5,11 @@
 #include "rest/rest_transfer.h"
 #include "utils_pg_ai.h"
 
-
 /*
  * Function to define aptions applicable to the embeddings service calls.
  * These options are to be passed via SQL function calls or set by GUCs.
  */
-static void
-define_options(AIService * ai_service)
+static void define_options(AIService *ai_service)
 {
 	ServiceOption **option_list = &(ai_service->service_data->options);
 
@@ -19,10 +17,9 @@ define_options(AIService * ai_service)
 	ai_service->define_common_options(ai_service);
 
 	/* the vector store to be craeted or queried */
-	define_new_option(option_list, OPTION_STORE_NAME,
-					  OPTION_STORE_NAME_DESC,
+	define_new_option(option_list, OPTION_STORE_NAME, OPTION_STORE_NAME_DESC,
 					  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
-					  NULL /* storage ptr */ , 0 /* max size */ );
+					  NULL /* storage ptr */, 0 /* max size */);
 
 	/*
 	 * vector store creation options: 1.SQL query 2.optional notes on the
@@ -31,16 +28,14 @@ define_options(AIService * ai_service)
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
 	{
 		/* the query is text and passed to SPI for execution */
-		define_new_option(option_list, OPTION_SQL_QUERY,
-						  OPTION_SQL_QUERY_DESC,
+		define_new_option(option_list, OPTION_SQL_QUERY, OPTION_SQL_QUERY_DESC,
 						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
-						  NULL /* storage ptr */ , 0 /* max size */ );
+						  NULL /* storage ptr */, 0 /* max size */);
 		define_new_option(option_list, OPTION_SERVICE_PROMPT,
 						  OPTION_SERVICE_PROMPT_DESC,
 						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
-						  NULL /* storage ptr */ , 0 /* max size */ );
+						  NULL /* storage ptr */, 0 /* max size */);
 	}
-
 
 	/*
 	 * vector store query options: 1.NL query 2. record count 3. matching
@@ -48,34 +43,31 @@ define_options(AIService * ai_service)
 	 */
 	if (ai_service->function_flags & FUNCTION_QUERY_VECTOR_STORE)
 	{
-		define_new_option(option_list, OPTION_NL_QUERY,
-						  OPTION_NL_QUERY_DESC,
+		define_new_option(option_list, OPTION_NL_QUERY, OPTION_NL_QUERY_DESC,
 						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
-						  NULL /* storage ptr */ , 0 /* max size */ );
+						  NULL /* storage ptr */, 0 /* max size */);
 		define_new_option(option_list, OPTION_RECORD_COUNT,
 						  OPTION_RECORD_COUNT_DESC,
 						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
-						  NULL /* storage ptr */ , 0 /* max size */ );
+						  NULL /* storage ptr */, 0 /* max size */);
 		define_new_option(option_list, OPTION_MATCHING_ALGORITHM,
 						  OPTION_MATCHING_ALGORITHM_DESC,
 						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
-						  NULL /* storage ptr */ , 0 /* max size */ );
+						  NULL /* storage ptr */, 0 /* max size */);
 	}
 }
-
 
 /*
  * Initialize the service options for the embeddings service.
  */
-void
-embeddings_initialize_service(void *service)
+void embeddings_initialize_service(void *service)
 {
-	AIService  *ai_service = (AIService *) service;
+	AIService *ai_service = (AIService *)service;
 
 	/* TODO : change func signature to return error in mem context is not set */
 	/* the options are stored in service data, allocate before defining */
-	ai_service->service_data = MemoryContextAllocZero
-		(ai_service->memory_context, sizeof(ServiceData));
+	ai_service->service_data =
+		MemoryContextAllocZero(ai_service->memory_context, sizeof(ServiceData));
 	ai_service->service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
 	ai_service->service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
 
@@ -83,33 +75,29 @@ embeddings_initialize_service(void *service)
 	define_options(ai_service);
 }
 
-
 /*
  * Return the help text to be displayed for the embeddings service.
  */
-void
-embeddings_help(char *help_text, const size_t max_len)
+void embeddings_help(char *help_text, const size_t max_len)
 {
 	if (help_text)
 		strncpy(help_text, EMBEDDINGS_HELP, max_len);
 }
 
-
 /*
-* set the options for the embeddings service and validate the options.
-*/
-int
-embeddings_set_and_validate_options(void *service, void *function_options)
+ * set the options for the embeddings service and validate the options.
+ */
+int embeddings_set_and_validate_options(void *service, void *function_options)
 {
-	PG_FUNCTION_ARGS = (FunctionCallInfo) function_options;
-	AIService  *ai_service = (AIService *) service;
+	PG_FUNCTION_ARGS = (FunctionCallInfo)function_options;
+	AIService *ai_service = (AIService *)service;
 	ServiceOption *options = ai_service->service_data->options;
-	char		count_str[10];
-	int			count;
+	char count_str[10];
+	int count;
 
 	if (!PG_ARGISNULL(0))
 		set_option_value(options, OPTION_STORE_NAME,
-						 NameStr(*PG_GETARG_NAME(0)), false /* concat */ );
+						 NameStr(*PG_GETARG_NAME(0)), false /* concat */);
 
 	/* function: create store */
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
@@ -117,12 +105,11 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 		if (!PG_ARGISNULL(1))
 			set_option_value(options, OPTION_SQL_QUERY,
 							 text_to_cstring(PG_GETARG_TEXT_PP(1)),
-							 false /* concat */ );
+							 false /* concat */);
 
 		if (!PG_ARGISNULL(2))
 			set_option_value(options, OPTION_SERVICE_PROMPT,
-							 NameStr(*PG_GETARG_NAME(2)),
-							 false /* concat */ );
+							 NameStr(*PG_GETARG_NAME(2)), false /* concat */);
 	}
 
 	/* function: query store */
@@ -131,7 +118,7 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 		if (!PG_ARGISNULL(1))
 			set_option_value(options, OPTION_NL_QUERY,
 							 text_to_cstring(PG_GETARG_TEXT_PP(1)),
-							 false /* concat */ );
+							 false /* concat */);
 
 		/* limiting the record count out to MAX_COUNT_RECORDS */
 		count = PG_ARGISNULL(2) ? MIN_COUNT_RECORDS : PG_GETARG_INT16((2));
@@ -142,23 +129,24 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 		sprintf(count_str, "%d", count);
 
 		set_option_value(options, OPTION_RECORD_COUNT, count_str,
-						 false /* concat */ );
+						 false /* concat */);
 
 		/* TODO for now only consine similarity is supported */
 		set_option_value(options, OPTION_MATCHING_ALGORITHM,
-						 EMBEDDINGS_COSINE_SIMILARITY,
-						 false /* concat */ );
+						 EMBEDDINGS_COSINE_SIMILARITY, false /* concat */);
 	}
 
 	/* check if all required options are set */
 	for (options = ai_service->service_data->options; options;
 		 options = options->next)
 	{
-		if ((options->flags & OPTION_FLAG_REQUIRED) && !(options->flags &
-														 OPTION_FLAG_IS_SET))
+		if ((options->flags & OPTION_FLAG_REQUIRED) &&
+			!(options->flags & OPTION_FLAG_IS_SET))
 		{
 			ereport(INFO, (errmsg("Required %s option \"%s\" missing.\n",
-								  options->flags & OPTION_FLAG_GUC ? "GUC" : "function", options->name)));
+								  options->flags & OPTION_FLAG_GUC ? "GUC" :
+																	 "function",
+								  options->name)));
 			return RETURN_ERROR;
 		}
 	}
@@ -168,35 +156,32 @@ embeddings_set_and_validate_options(void *service, void *function_options)
 /*
  * Function to initialize the service data for the embeddings service.
  */
-int
-embeddings_set_service_data(void *service, void *data)
+int embeddings_set_service_data(void *service, void *data)
 {
-
 	/* embeddings use pg_vector extension */
 	if (!is_extension_installed(PG_EXTENSION_PG_VECTOR))
 	{
-		ereport(INFO, (errmsg("Extension '%s' is not installed.\n", PG_EXTENSION_PG_VECTOR)));
+		ereport(INFO, (errmsg("Extension '%s' is not installed.\n",
+							  PG_EXTENSION_PG_VECTOR)));
 		return RETURN_ERROR;
 	}
 
 	return RETURN_ZERO;
 }
 
-
 /*
  * Function to prepare the service for data transfer. This function is
  * called before the transfer is initiated. Create the table to store the
  * embeddings if the function is to create a vector store.
  */
-int
-embeddings_prepare_for_transfer(void *service)
+int embeddings_prepare_for_transfer(void *service)
 {
-	AIService  *ai_service = (AIService *) service;
+	AIService *ai_service = (AIService *)service;
 
 	/* TODO check if this has/can to be moved to embeddings_set_data() above */
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
 	{
-		char		query[SQL_QUERY_MAX_LENGTH];
+		char query[SQL_QUERY_MAX_LENGTH];
 
 		/* create a table to materialize the query result set */
 		snprintf(query, SQL_QUERY_MAX_LENGTH, "CREATE TABLE %s AS %s",
@@ -204,7 +189,7 @@ embeddings_prepare_for_transfer(void *service)
 								  OPTION_STORE_NAME),
 				 get_option_value(ai_service->service_data->options,
 								  OPTION_SQL_QUERY));
-		execute_query_spi(query, false /* read only */ );
+		execute_query_spi(query, false /* read only */);
 
 		/* add a serial column to identify the rows, needed for a update row */
 		snprintf(query, SQL_QUERY_MAX_LENGTH,
@@ -214,7 +199,7 @@ embeddings_prepare_for_transfer(void *service)
 				 get_option_value(ai_service->service_data->options,
 								  OPTION_STORE_NAME),
 				 PK_SUFFIX);
-		execute_query_spi(query, false /* read only */ );
+		execute_query_spi(query, false /* read only */);
 
 		/* add a vector column to store the embeddings */
 		snprintf(query, SQL_QUERY_MAX_LENGTH,
@@ -222,22 +207,19 @@ embeddings_prepare_for_transfer(void *service)
 				 get_option_value(ai_service->service_data->options,
 								  OPTION_STORE_NAME),
 				 EMBEDDINGS_COLUMN_NAME, EMBEDDINGS_LIST_SIZE);
-		execute_query_spi(query, false /* read only */ );
+		execute_query_spi(query, false /* read only */);
 	}
-	init_rest_transfer((AIService *) ai_service);
+	init_rest_transfer((AIService *)ai_service);
 	return RETURN_ZERO;
-
 }
 
-
 /*
-* wrapper to execute the query using SPI
-*/
-int
-execute_query_spi(const char *query, bool read_only)
+ * wrapper to execute the query using SPI
+ */
+int execute_query_spi(const char *query, bool read_only)
 {
-	int			ret;
-	int			row_limit = 0;
+	int ret;
+	int row_limit = 0;
 
 	/* ereport(INFO,(errmsg("Query: %s\n", query))); */
 	SPI_connect();
@@ -246,27 +228,23 @@ execute_query_spi(const char *query, bool read_only)
 	return ret;
 }
 
-
 /*
  * Function to cleanup the transfer structures before initiating a new
-* transfer request.
+ * transfer request.
  */
-int
-embeddings_cleanup_service_data(void *ai_service)
+int embeddings_cleanup_service_data(void *ai_service)
 {
 	/* cleanup_rest_transfer((AIService *)ai_service); */
-	pfree(((AIService *) ai_service)->service_data);
+	pfree(((AIService *)ai_service)->service_data);
 	return RETURN_ZERO;
 }
-
 
 /*
  * Function to initialize the service buffers for data tranasfer.
  */
-void
-embeddings_set_service_buffers(RestRequest * rest_request,
-							   RestResponse * rest_response,
-							   ServiceData * service_data)
+void embeddings_set_service_buffers(RestRequest *rest_request,
+									RestResponse *rest_response,
+									ServiceData *service_data)
 {
 	rest_request->data = service_data->request;
 	rest_request->max_size = service_data->max_request_size;
@@ -275,38 +253,36 @@ embeddings_set_service_buffers(RestRequest * rest_request,
 	rest_response->max_size = service_data->max_response_size;
 }
 
-
 /*
  * Initialize the service headers in the curl context. This is a
  * call back from REST transfer layer. The curl headers are
  * constructed from this list.
  */
-int
-embeddings_add_service_headers(CURL * curl, struct curl_slist **headers,
-							   void *service)
+int embeddings_add_service_headers(CURL *curl, struct curl_slist **headers,
+								   void *service)
 {
-	AIService  *ai_service = (AIService *) service;
+	AIService *ai_service = (AIService *)service;
 	struct curl_slist *curl_headers = *headers;
-	char		key_header[128];
+	char key_header[128];
 
-	curl_headers = curl_slist_append(curl_headers, "Content-Type: application/json");
+	curl_headers =
+		curl_slist_append(curl_headers, "Content-Type: application/json");
 	snprintf(key_header, sizeof(key_header), "Authorization: Bearer %s",
-			 get_option_value(ai_service->service_data->options, OPTION_SERVICE_API_KEY));
+			 get_option_value(ai_service->service_data->options,
+							  OPTION_SERVICE_API_KEY));
 	curl_headers = curl_slist_append(curl_headers, key_header);
 	*headers = curl_headers;
 
 	return RETURN_ZERO;
 }
 
-
 /*
  * Callback to make the POST header for the REST transfer.
  */
 #define EMBEDDINGS_PREFIX "{\"input\":"
 #define EMBEDDINGS_MODEL ",\"model\":\"text-embedding-ada-002\"}"
-void
-embeddings_post_header_maker(char *buffer, const size_t maxlen,
-							 const char *data, const size_t len)
+void embeddings_post_header_maker(char *buffer, const size_t maxlen,
+								  const char *data, const size_t len)
 {
 	strcpy(buffer, EMBEDDINGS_PREFIX);
 	strcat(buffer, "\"");
@@ -316,9 +292,7 @@ embeddings_post_header_maker(char *buffer, const size_t maxlen,
 	/* ereport(INFO,(errmsg("POST: %s\n\n", buffer))); */
 }
 
-
-int
-embeddings_handle_response_headers(void *service, void *user_data)
+int embeddings_handle_response_headers(void *service, void *user_data)
 {
 	return RETURN_ZERO;
 }
@@ -328,24 +302,23 @@ embeddings_handle_response_headers(void *service, void *user_data)
  * the json returned by the service.
  */
 /* TODO break the function into mangeable chunks */
-void
-embeddings_rest_transfer(void *service)
+void embeddings_rest_transfer(void *service)
 {
-	Datum		datas;
-	Datum		first_choice;
-	Datum		return_text;
-	Datum		val;
-	bool		isnull;
-	int			ret;
-	int			count = 0;
-	int64		pk_col_value = -1;
-	AIService  *ai_service = (AIService *) (service);
+	Datum datas;
+	Datum first_choice;
+	Datum return_text;
+	Datum val;
+	bool isnull;
+	int ret;
+	int count = 0;
+	int64 pk_col_value = -1;
+	AIService *ai_service = (AIService *)(service);
 	ServiceOption *options = ai_service->service_data->options;
-	char		pk_col[COLUMN_NAME_LEN];
-	char		data[SQL_QUERY_MAX_LENGTH];
-	char		query[SQL_QUERY_MAX_LENGTH];
+	char pk_col[COLUMN_NAME_LEN];
+	char data[SQL_QUERY_MAX_LENGTH];
+	char query[SQL_QUERY_MAX_LENGTH];
 
-	ai_service = (AIService *) (service);
+	ai_service = (AIService *)(service);
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
 	{
 		sprintf(query, "SELECT * FROM %s",
@@ -367,31 +340,30 @@ embeddings_rest_transfer(void *service)
 		if (ret > 0 && SPI_tuptable != NULL)
 		{
 			SPITupleTable *tuptable = SPI_tuptable;
-			TupleDesc	tupdesc = tuptable->tupdesc;
-			char		buf[8192];
-			uint64		j;
-			char		prompt_str[64];
+			TupleDesc tupdesc = tuptable->tupdesc;
+			char buf[8192];
+			uint64 j;
+			char prompt_str[64];
 
 			/* TODO replace the constants */
 			snprintf(prompt_str, 64, "%s",
 					 get_option_value(options, OPTION_SERVICE_PROMPT));
 			make_pk_col_name(pk_col, COLUMN_NAME_LEN,
-							 get_option_value(options,
-											  OPTION_STORE_NAME));
+							 get_option_value(options, OPTION_STORE_NAME));
 			snprintf(buf, 8192, "%s ", prompt_str);
 
 			/* loop through the result set */
 			for (j = 0; j < tuptable->numvals; j++)
 			{
-				HeapTuple	tuple = tuptable->vals[j];
-				int			i;
+				HeapTuple tuple = tuptable->vals[j];
+				int i;
 
 				/* concatinate all column vals to get an embedding */
 				for (i = 1, buf[0] = 0; i <= tupdesc->natts; i++)
 				{
 					/* skip sending the embedded column itself */
-					if (strcmp(SPI_fname(tupdesc, i),
-							   EMBEDDINGS_COLUMN_NAME) == 0)
+					if (strcmp(SPI_fname(tupdesc, i), EMBEDDINGS_COLUMN_NAME) ==
+						0)
 						continue;
 
 					/* newly added pk column is a row identifier, skip it */
@@ -414,7 +386,8 @@ embeddings_rest_transfer(void *service)
 
 				/* make a rest call to get the embeddings */
 				rest_transfer(ai_service);
-				*((char *) (ai_service->rest_response->data) + ai_service->rest_response->data_size) = '\0';
+				*((char *)(ai_service->rest_response->data) +
+				  ai_service->rest_response->data_size) = '\0';
 
 				/*
 				 * ereport(INFO,(errmsg("Return: %s -%ld\n\n",
@@ -424,16 +397,16 @@ embeddings_rest_transfer(void *service)
 				/* extract the embeddings from the response json */
 				if (ai_service->rest_response->response_code == HTTP_OK)
 				{
-					datas = DirectFunctionCall2(json_object_field_text,
-												CStringGetTextDatum(
-																	(char *) (ai_service->rest_response->data)),
-												PointerGetDatum(cstring_to_text("data")));
-					first_choice = DirectFunctionCall2(json_array_element_text,
-													   datas,
-													   PointerGetDatum(0));
-					return_text = DirectFunctionCall2(json_object_field_text,
-													  first_choice,
-													  PointerGetDatum(cstring_to_text("embedding")));
+					datas = DirectFunctionCall2(
+						json_object_field_text,
+						CStringGetTextDatum(
+							(char *)(ai_service->rest_response->data)),
+						PointerGetDatum(cstring_to_text("data")));
+					first_choice = DirectFunctionCall2(
+						json_array_element_text, datas, PointerGetDatum(0));
+					return_text = DirectFunctionCall2(
+						json_object_field_text, first_choice,
+						PointerGetDatum(cstring_to_text("embedding")));
 
 					/*
 					 * ereport(INFO,(errmsg("Return1: %s \n\n",
@@ -450,11 +423,12 @@ embeddings_rest_transfer(void *service)
 							EMBEDDINGS_COLUMN_NAME, data,
 							get_option_value(options, OPTION_STORE_NAME),
 							PK_SUFFIX, pk_col_value);
-					execute_query_spi(query, false /* read only */ );
+					execute_query_spi(query, false /* read only */);
 
 					/* make way for the next call */
 					ai_service->rest_response->data_size = 0;
-					*((char *) (ai_service->rest_response->data) + ai_service->rest_response->data_size) = '\0';
+					*((char *)(ai_service->rest_response->data) +
+					  ai_service->rest_response->data_size) = '\0';
 				}
 				else if (ai_service->rest_response->data_size == 0)
 				{
@@ -463,13 +437,13 @@ embeddings_rest_transfer(void *service)
 					return;
 				}
 
-			}					/* end of while cursor */
-		}						/* rows returned */
+			} /* end of while cursor */
+		}	  /* rows returned */
 		SPI_finish();
 		/* return the store name */
-		strcpy((char *) (ai_service->rest_response->data),
+		strcpy((char *)(ai_service->rest_response->data),
 			   get_option_value(options, OPTION_STORE_NAME));
-	}							/* create embeddings */
+	} /* create embeddings */
 
 	/* query embeddings */
 	if (ai_service->function_flags & FUNCTION_QUERY_VECTOR_STORE)
@@ -478,7 +452,8 @@ embeddings_rest_transfer(void *service)
 		strcpy(ai_service->service_data->request,
 			   get_option_value(options, OPTION_NL_QUERY));
 		rest_transfer(ai_service);
-		*((char *) (ai_service->rest_response->data) + ai_service->rest_response->data_size) = '\0';
+		*((char *)(ai_service->rest_response->data) +
+		  ai_service->rest_response->data_size) = '\0';
 
 		/*
 		 * ereport(INFO,(errmsg("Return: %s\n\n",
@@ -488,30 +463,29 @@ embeddings_rest_transfer(void *service)
 		/* extract the embeddings from the response */
 		if (ai_service->rest_response->response_code == HTTP_OK)
 		{
-			datas = DirectFunctionCall2(json_object_field_text,
-										CStringGetTextDatum(
-															(char *) (ai_service->rest_response->data)),
-										PointerGetDatum(cstring_to_text("data")));
-			first_choice = DirectFunctionCall2(json_array_element_text,
-											   datas,
+			datas = DirectFunctionCall2(
+				json_object_field_text,
+				CStringGetTextDatum((char *)(ai_service->rest_response->data)),
+				PointerGetDatum(cstring_to_text("data")));
+			first_choice = DirectFunctionCall2(json_array_element_text, datas,
 											   PointerGetDatum(0));
-			return_text = DirectFunctionCall2(json_object_field_text,
-											  first_choice,
-											  PointerGetDatum(cstring_to_text("embedding")));
+			return_text = DirectFunctionCall2(
+				json_object_field_text, first_choice,
+				PointerGetDatum(cstring_to_text("embedding")));
 
 			strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
 			remove_new_lines(data);
 
 			/* query the materialized store for ANN */
 			sprintf(query,
-					"SELECT *, 1 - (%s <=> '%s') AS %s FROM %s ORDER BY cosine_similarity DESC ",
+					"SELECT *, 1 - (%s <=> '%s') AS %s FROM %s ORDER BY "
+					"cosine_similarity DESC ",
 					EMBEDDINGS_COLUMN_NAME, data, EMBEDDINGS_COSINE_SIMILARITY,
 					get_option_value(options, OPTION_STORE_NAME));
 			if (get_option_value(options, OPTION_RECORD_COUNT))
 			{
 				strcat(query, "LIMIT ");
-				strcat(query,
-					   get_option_value(options, OPTION_RECORD_COUNT));
+				strcat(query, get_option_value(options, OPTION_RECORD_COUNT));
 			}
 			/* ereport(INFO,(errmsg("QUERY: %s \n\n", query))); */
 
@@ -521,7 +495,7 @@ embeddings_rest_transfer(void *service)
 			 */
 			strcpy(ai_service->service_data->response, query);
 			return;
-		} //http response ok
-	} //query embeddings
-		return;
+		} // http response ok
+	}	  // query embeddings
+	return;
 }
