@@ -117,6 +117,7 @@ int initialize_service(const int service_flags, const int model_flags,
 	char model_description[PG_AI_DESC_LENGTH];
 	char model_url[SERVICE_DATA_SIZE];
 	char *api_key;
+	int *debug_level;
 
 	/* initialize the service based on the service and model flags */
 	if (service_flags & SERVICE_OPENAI)
@@ -169,10 +170,7 @@ int initialize_service(const int service_flags, const int model_flags,
 		/* initialize service data and define options for the service */
 		(ai_service->init_service_options)(ai_service);
 
-		/* set the constant model specific info and options */
-		strcpy(ai_service->service_data->service_description,
-			   service_description);
-		strcpy(ai_service->service_data->model_description, model_description);
+		/* set the constant model options */
 		set_option_value(ai_service->service_data->options, OPTION_SERVICE_NAME,
 						 service_name, false /* concat */);
 		set_option_value(ai_service->service_data->options, OPTION_MODEL_NAME,
@@ -180,12 +178,23 @@ int initialize_service(const int service_flags, const int model_flags,
 		set_option_value(ai_service->service_data->options, OPTION_ENDPOINT_URL,
 						 model_url, false /* concat */);
 
+		/* the service and model descriptions are not options but stored as part
+		 * of the service data.
+		 */
+		strcpy(ai_service->service_data->service_description,
+			   service_description);
+		strcpy(ai_service->service_data->model_description, model_description);
+
 		/* set the API key if it is available in a GUC */
 		api_key = get_pg_ai_guc_string_variable(PG_AI_GUC_API_KEY);
 		if (api_key)
 			set_option_value(ai_service->service_data->options,
 							 OPTION_SERVICE_API_KEY, api_key,
 							 false /* concat */);
+
+		/* set the debug level if it is available in a GUC */
+		if ((debug_level = get_pg_ai_guc_int_variable(PG_AI_GUC_DEBUG_LEVEL)))
+			ai_service->debug_level = *debug_level;
 	}
 	return return_value;
 }

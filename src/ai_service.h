@@ -90,6 +90,9 @@ typedef struct AIService
 	/* flags to represent the SQL function being called */
 	int function_flags;
 
+	/* flags to represent the debug level */
+	int debug_level;
+
 	/* every service gets to maintain its own private data */
 	ServiceData *service_data;
 

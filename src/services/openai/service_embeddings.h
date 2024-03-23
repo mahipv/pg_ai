@@ -3,6 +3,10 @@
 
 #include "ai_service.h"
 
+#define EMBEDDINGS_SIMILARITY_COSINE "cosine"
+#define EMBEDDINGS_SIMILARITY_EUCLIDEAN "euclidean"
+#define EMBEDDINGS_SIMILARITY_INNER_PRODUCT "inner_product"
+
 /* calls made from Pg <-> PgAi */
 void embeddings_initialize_service(void *service);
 int embeddings_set_and_validate_options(void *service, void *function_options);
@@ -26,4 +30,5 @@ int execute_query_spi(const char *query, bool read_only);
 int embeddings_handle_response_headers(void *service, void *user_data);
 int embeddings_handle_response_data(void *service, void *user_data);
 
+void set_similarity_algorithm(ServiceOption *options);
 #endif /* _SERVICE_EMBEDDINGS_H_ */

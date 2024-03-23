@@ -64,6 +64,10 @@ SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
                                 count => 3);
 ```
 
+```sql
+SET pg_ai.similarity_algorithm='cosine'(default)|'euclidean'|'inner_product';
+```
+
 ### Help
 ```sql
 SELECT pg_ai_help();
@@ -90,7 +94,7 @@ Model versions in use.
 * Improve curl read callbacks and add tokenization support to handle longer context data.
 * Enable customization to utilize alternative local and remote LLMs.
 * Separate storage layer to enable the creation and querying of remote vector stores,(object stores/dbs, file-based storage).
-* Increase compatibility with additional vector similarity algorithms and explore new vector index type (HNTW).
+* Explore new vector index type (HNTW).
 * Introduce the extension catalog.
 
 ## Disclaimer

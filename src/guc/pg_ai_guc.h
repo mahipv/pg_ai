@@ -10,6 +10,9 @@
 
 #define PG_AI_GUC_SERVICE "pg_ai.openai_model"
 #define PG_AI_GUC_SERVICE_DESCRIPTION "OpenAI model"
+
+#define PG_AI_GUC_VEC_SIMILARITY_ALGO "pg_ai.similarity_algorithm"
+#define PG_AI_GUC_VEC_SIMILARITY_ALGO_DESC "Vector similarity algorithm"
 /* ------ string gucs >8----------------------- */
 
 /* ------8< integer gucs ----------------------- */
@@ -19,6 +22,13 @@
 #define PG_AI_GUC_MINIMUM_WORK_MEM_KB 1024
 #define PG_AI_GUC_DEFAULT_WORK_MEM_KB (8 * 1024)
 #define PG_AI_GUC_MAXIMUM_WORK_MEM_KB (1024 * 1024)
+
+#define PG_AI_GUC_DEBUG_LEVEL "pg_ai.debug_level"
+#define PG_AI_GUC_DEBUG_LEVEL_DESCRIPTION                                      \
+	"Debug level for pg_ai. 0: No debug, 1: Info, 2: Debug, 3: Trace"
+#define PG_AI_GUC_MINIMUM_DEBUG_LEVEL 0
+#define PG_AI_GUC_DEFAULT_DEBUG_LEVEL 1
+#define PG_AI_GUC_MAXIMUM_DEBUG_LEVEL 3
 /* ------ integer gucs >8----------------------- */
 
 void define_pg_ai_guc_variables(void);

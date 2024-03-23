@@ -3,6 +3,7 @@
 #include "executor/spi.h"
 
 #include "rest/rest_transfer.h"
+#include "guc/pg_ai_guc.h"
 #include "utils_pg_ai.h"
 
 /*
@@ -50,10 +51,10 @@ static void define_options(AIService *ai_service)
 						  OPTION_RECORD_COUNT_DESC,
 						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
 						  NULL /* storage ptr */, 0 /* max size */);
-		define_new_option(option_list, OPTION_MATCHING_ALGORITHM,
-						  OPTION_MATCHING_ALGORITHM_DESC,
-						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
-						  NULL /* storage ptr */, 0 /* max size */);
+		define_new_option(option_list, OPTION_SIMILARITY_ALGORITHM,
+						  OPTION_SIMILARITY_ALGORITHM_DESC,
+						  OPTION_FLAG_REQUIRED, NULL /* storage ptr */,
+						  0 /* max size */);
 	}
 }
 
@@ -82,6 +83,35 @@ void embeddings_help(char *help_text, const size_t max_len)
 {
 	if (help_text)
 		strncpy(help_text, EMBEDDINGS_HELP, max_len);
+}
+
+/*
+ * Set the similarity algorithm to be used for the embeddings service.
+ * The algorithm is set by the GUC pg_ai.vec_similarity_algo and defaults
+ * to cosine similarity.
+ */
+void set_similarity_algorithm(ServiceOption *options)
+{
+	char *similarity_algo =
+		get_pg_ai_guc_string_variable(PG_AI_GUC_VEC_SIMILARITY_ALGO);
+
+	/* default to cosine */
+	if (!similarity_algo)
+		similarity_algo = EMBEDDINGS_SIMILARITY_COSINE;
+	else
+	{
+		/* can check for non-exact strings and set values accordingly */
+		if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_EUCLIDEAN))
+			similarity_algo = EMBEDDINGS_SIMILARITY_EUCLIDEAN;
+		else if (!strcasecmp(similarity_algo,
+							 EMBEDDINGS_SIMILARITY_INNER_PRODUCT))
+			similarity_algo = EMBEDDINGS_SIMILARITY_INNER_PRODUCT;
+		else
+			similarity_algo = EMBEDDINGS_SIMILARITY_COSINE;
+	}
+
+	set_option_value(options, OPTION_SIMILARITY_ALGORITHM, similarity_algo,
+					 false /* concat */);
 }
 
 /*
@@ -127,13 +157,10 @@ int embeddings_set_and_validate_options(void *service, void *function_options)
 		if (count < 0)
 			count = MIN_COUNT_RECORDS;
 		sprintf(count_str, "%d", count);
-
 		set_option_value(options, OPTION_RECORD_COUNT, count_str,
 						 false /* concat */);
 
-		/* TODO for now only consine similarity is supported */
-		set_option_value(options, OPTION_MATCHING_ALGORITHM,
-						 EMBEDDINGS_COSINE_SIMILARITY, false /* concat */);
+		set_similarity_algorithm(options);
 	}
 
 	/* check if all required options are set */
@@ -295,6 +322,50 @@ void embeddings_post_header_maker(char *buffer, const size_t maxlen,
 int embeddings_handle_response_headers(void *service, void *user_data)
 {
 	return RETURN_ZERO;
+}
+
+/*
+ * Function that prepares the select query for the embeddings service.
+ * The query is based on the similarity algorithm set by the user.
+ */
+static void make_select_query_with_similarity(AIService *ai_service, char *data,
+											  char *query)
+{
+	ServiceOption *options = ai_service->service_data->options;
+	char *similarity_algo =
+		get_option_value(options, OPTION_SIMILARITY_ALGORITHM);
+
+	/* at this point by this time similarity_algo is set and cannot be NULL */
+
+	/* refer pgvector docs for cosine syntax */
+	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_COSINE))
+	{
+		sprintf(query,
+				"SELECT *, 1 - (%s <=> '%s') AS %s FROM %s ORDER BY %s DESC ",
+				EMBEDDINGS_COLUMN_NAME, data, OPTION_SIMILARITY_ALGORITHM,
+				get_option_value(options, OPTION_STORE_NAME),
+				OPTION_SIMILARITY_ALGORITHM);
+	}
+
+	/* refer pgvector docs for euclidean distance syntax */
+	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_EUCLIDEAN))
+	{
+		sprintf(query, "SELECT *, (%s <-> '%s') AS %s FROM %s ORDER BY %s ASC ",
+				EMBEDDINGS_COLUMN_NAME, data, OPTION_SIMILARITY_ALGORITHM,
+				get_option_value(options, OPTION_STORE_NAME),
+				OPTION_SIMILARITY_ALGORITHM);
+	}
+
+	/* refer pgvector docs for the inner product syntax */
+	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_INNER_PRODUCT))
+	{
+		sprintf(
+			query,
+			"SELECT *, (-1 * (%s <#> '%s')) AS %s FROM %s ORDER BY %s DESC ",
+			EMBEDDINGS_COLUMN_NAME, data, OPTION_SIMILARITY_ALGORITHM,
+			get_option_value(options, OPTION_STORE_NAME),
+			OPTION_SIMILARITY_ALGORITHM);
+	}
 }
 
 /*
@@ -476,18 +547,17 @@ void embeddings_rest_transfer(void *service)
 			strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
 			remove_new_lines(data);
 
-			/* query the materialized store for ANN */
-			sprintf(query,
-					"SELECT *, 1 - (%s <=> '%s') AS %s FROM %s ORDER BY "
-					"cosine_similarity DESC ",
-					EMBEDDINGS_COLUMN_NAME, data, EMBEDDINGS_COSINE_SIMILARITY,
-					get_option_value(options, OPTION_STORE_NAME));
+			/* query for the materialized store for ANN */
+			make_select_query_with_similarity(ai_service, data, query);
+
 			if (get_option_value(options, OPTION_RECORD_COUNT))
 			{
 				strcat(query, "LIMIT ");
 				strcat(query, get_option_value(options, OPTION_RECORD_COUNT));
 			}
-			/* ereport(INFO,(errmsg("QUERY: %s \n\n", query))); */
+
+			if (is_debug_level(PG_AI_DEBUG_3))
+				ereport(INFO, (errmsg("QUERY: %s \n\n", query)));
 
 			/*
 			 * Return the SQL query so that the result set can formatted by
@@ -495,7 +565,7 @@ void embeddings_rest_transfer(void *service)
 			 */
 			strcpy(ai_service->service_data->response, query);
 			return;
-		} // http response ok
-	}	  // query embeddings
+		} /* http response ok */
+	}	  /* query embeddings */
 	return;
 }

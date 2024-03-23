@@ -47,7 +47,6 @@
 
 #define EMBEDDINGS_COLUMN_NAME "embeddings"
 #define PK_SUFFIX "_id"
-#define EMBEDDINGS_COSINE_SIMILARITY "cosine_similarity"
 
 #define PG_EXTENSION_PG_VECTOR "vector"
 

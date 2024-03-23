@@ -14,10 +14,11 @@ typedef struct PgAiStringGUCs
 PgAiStringGUCs pg_ai_str_gucs[] = {
 	{PG_AI_GUC_API_KEY, PG_AI_GUC_API_KEY_DESCRIPTION},
 	{PG_AI_GUC_MODEL, PG_AI_GUC_MODEL_DESCRIPTION},
-	{PG_AI_GUC_SERVICE, PG_AI_GUC_SERVICE_DESCRIPTION}};
+	{PG_AI_GUC_SERVICE, PG_AI_GUC_SERVICE_DESCRIPTION},
+	{PG_AI_GUC_VEC_SIMILARITY_ALGO, PG_AI_GUC_VEC_SIMILARITY_ALGO_DESC}};
 
 /* the values array should be in sync with the above definition array */
-static char *pg_ai_str_guc_values[] = {NULL, NULL, NULL};
+static char *pg_ai_str_guc_values[] = {NULL, NULL, NULL, NULL};
 
 /* GUCs that accept a integer values */
 typedef struct PgAiIntGUCs
@@ -31,13 +32,16 @@ typedef struct PgAiIntGUCs
 /* for new int GUCs, add entries to this and the values array */
 PgAiIntGUCs pg_ai_int_gucs[] = {
 	{PG_AI_GUC_WORK_MEM_SIZE, PG_AI_GUC_WORK_MEM_SIZE_DESCRIPTION,
-	 PG_AI_GUC_MINIMUM_WORK_MEM_KB, PG_AI_GUC_MAXIMUM_WORK_MEM_KB}};
+	 PG_AI_GUC_MINIMUM_WORK_MEM_KB, PG_AI_GUC_MAXIMUM_WORK_MEM_KB},
+	{PG_AI_GUC_DEBUG_LEVEL, PG_AI_GUC_DEBUG_LEVEL_DESCRIPTION,
+	 PG_AI_GUC_MINIMUM_DEBUG_LEVEL, PG_AI_GUC_MAXIMUM_DEBUG_LEVEL}};
 
 /* set the default/boot value */
 static int pg_ai_work_mem = PG_AI_GUC_DEFAULT_WORK_MEM_KB;
+static int pg_ai_debug_level = PG_AI_GUC_DEFAULT_DEBUG_LEVEL;
 
 /* the values array should be in sync with the above definition array */
-static int *pg_ai_int_guc_values[] = {&pg_ai_work_mem};
+static int *pg_ai_int_guc_values[] = {&pg_ai_work_mem, &pg_ai_debug_level};
 
 /*
  * Define the GUCs for the AI services.

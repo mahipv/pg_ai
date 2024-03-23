@@ -95,7 +95,7 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 	AIService *ai_service;
 	int return_value;
 	char pk_col[COLUMN_NAME_LEN];
-	char *hide_cols[] = {EMBEDDINGS_COLUMN_NAME, EMBEDDINGS_COSINE_SIMILARITY,
+	char *hide_cols[] = {EMBEDDINGS_COLUMN_NAME, OPTION_SIMILARITY_ALGORITHM,
 						 pk_col};
 	int hide_col_count = sizeof(hide_cols) / sizeof(hide_cols[0]);
 
@@ -103,8 +103,8 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 	{
 		funcctx = SRF_FIRSTCALL_INIT();
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
-		query_string = palloc(SERVICE_MAX_RESPONSE_SIZE);
 		ai_service = palloc0(sizeof(AIService));
+		query_string = palloc0(SERVICE_MAX_RESPONSE_SIZE);
 		ai_service->memory_context = funcctx->multi_call_memory_ctx;
 
 		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
@@ -132,18 +132,14 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 			PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
 										 transfer data"));
 
+		/* call the transfer. The rest call will return the query string with
+		 * the vectors for the natural language query */
 		(ai_service->rest_transfer)(ai_service);
 
-		/*
-		 * ereport(INFO, (errmsg("%s
-		 * ",(char*)(ai_service->rest_response->data))));
-		 */
+		/* get the query string and execute */
 		sprintf(query_string, "%s",
 				(char *)(ai_service->service_data->response));
-		/* sprintf(query_string, "%s", "Select * from movies where id < 10"); */
-		/* ereport(INFO,(errmsg("QUERY_STRING :%s\n",query_string))); */
-		/* ---------------------------------------------------------------------
-		 */
+
 		query_data = palloc(sizeof(SrfQueryData));
 		query_data->current_row = 0;
 		query_data->print_header_info = true;
@@ -159,6 +155,7 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 		}
 		spi_result =
 			SPI_execute(query_string, true /* read only */, 0 /* all tuples */);
+
 		if (spi_result != SPI_OK_SELECT)
 		{
 			ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
@@ -177,7 +174,8 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 			query_data->tuble_table, &(funcctx->tuple_desc), (char **)hide_cols,
 			hide_col_count);
 		MemoryContextSwitchTo(oldcontext);
-	}
+	} /* end of first call */
+
 	funcctx = SRF_PERCALL_SETUP();
 	query_data = funcctx->user_fctx;
 
@@ -212,7 +210,6 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		/* ereport(INFO,(errmsg("DONE returning rows \n"))); */
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 		SPI_finish();
 		MemoryContextSwitchTo(oldcontext);

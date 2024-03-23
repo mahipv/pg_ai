@@ -68,9 +68,9 @@
 #define OPTION_RECORD_COUNT "count"
 #define OPTION_RECORD_COUNT_DESC "No of records to display.(default: 2)"
 
-#define OPTION_MATCHING_ALGORITHM "algorithm"
-#define OPTION_MATCHING_ALGORITHM_DESC                                         \
-	"Vector matching algorithm.(default/supported: cosine_similarity)"
+#define OPTION_SIMILARITY_ALGORITHM "algorithm"
+#define OPTION_SIMILARITY_ALGORITHM_DESC                                       \
+	"Vector similarity algorithm.(cosine(default), ecludian, inner_product)"
 
 #define OPTION_ENDPOINT_URL "endpoint_url"
 #define OPTION_ENDPOINT_URL_DESC "URL for the Rest API endpoint."
@@ -113,5 +113,12 @@
 #define COLUMN_NAME_LEN 255
 
 #define APPROX_WORDS_PER_1K_TOKENS 400
+
+#define PG_AI_DEBUG_0 0
+#define PG_AI_DEBUG_1 1
+#define PG_AI_DEBUG_2 2
+#define PG_AI_DEBUG_3 3
+
+#define is_debug_level(level) (ai_service->debug_level >= level)
 
 #endif /* _AI_CONFIG_H_ */
