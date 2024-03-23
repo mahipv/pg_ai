@@ -32,8 +32,7 @@ static void define_options(AIService *ai_service)
 		define_new_option(option_list, OPTION_SQL_QUERY, OPTION_SQL_QUERY_DESC,
 						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
 						  NULL /* storage ptr */, 0 /* max size */);
-		define_new_option(option_list, OPTION_SERVICE_PROMPT,
-						  OPTION_SERVICE_PROMPT_DESC,
+		define_new_option(option_list, OPTION_NL_NOTES, OPTION_NL_NOTES_DESC,
 						  OPTION_FLAG_REQUIRED | OPTION_FLAG_HELP_DISPLAY,
 						  NULL /* storage ptr */, 0 /* max size */);
 	}
@@ -100,7 +99,7 @@ void set_similarity_algorithm(ServiceOption *options)
 		similarity_algo = EMBEDDINGS_SIMILARITY_COSINE;
 	else
 	{
-		/* can check for non-exact strings and set values accordingly */
+		/* check for non-exact strings and set values accordingly */
 		if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_EUCLIDEAN))
 			similarity_algo = EMBEDDINGS_SIMILARITY_EUCLIDEAN;
 		else if (!strcasecmp(similarity_algo,
@@ -138,7 +137,7 @@ int embeddings_set_and_validate_options(void *service, void *function_options)
 							 false /* concat */);
 
 		if (!PG_ARGISNULL(2))
-			set_option_value(options, OPTION_SERVICE_PROMPT,
+			set_option_value(options, OPTION_NL_NOTES,
 							 NameStr(*PG_GETARG_NAME(2)), false /* concat */);
 	}
 
@@ -206,6 +205,7 @@ int embeddings_prepare_for_transfer(void *service)
 	AIService *ai_service = (AIService *)service;
 
 	/* TODO check if this has/can to be moved to embeddings_set_data() above */
+	/* create the data store table and add PK and the embeddings columns */
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
 	{
 		char query[SQL_QUERY_MAX_LENGTH];
@@ -416,9 +416,8 @@ void embeddings_rest_transfer(void *service)
 			uint64 j;
 			char prompt_str[64];
 
-			/* TODO replace the constants */
 			snprintf(prompt_str, 64, "%s",
-					 get_option_value(options, OPTION_SERVICE_PROMPT));
+					 get_option_value(options, OPTION_NL_NOTES));
 			make_pk_col_name(pk_col, COLUMN_NAME_LEN,
 							 get_option_value(options, OPTION_STORE_NAME));
 			snprintf(buf, 8192, "%s ", prompt_str);

@@ -44,7 +44,7 @@
 #define OPTION_SERVICE_API_KEY "key"
 #define OPTION_SERVICE_API_KEY_DESC "API Key value from the service provider."
 
-#define OPTION_COLUMN_VALUE "textcolumn"
+#define OPTION_COLUMN_VALUE "column_name"
 #define OPTION_COLUMN_VALUE_DESC "The input column to the LLM."
 
 #define OPTION_SERVICE_PROMPT "prompt"
@@ -64,6 +64,9 @@
 #define OPTION_NL_QUERY "nl_query"
 #define OPTION_NL_QUERY_DESC                                                   \
 	"Natural language query to fetch data from the vector store."
+
+#define OPTION_NL_NOTES "notes"
+#define OPTION_NL_NOTES_DESC "Notes on the result set."
 
 #define OPTION_RECORD_COUNT "count"
 #define OPTION_RECORD_COUNT_DESC "No of records to display.(default: 2)"

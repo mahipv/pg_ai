@@ -19,10 +19,12 @@
 
 #define GPT_HELP                                                               \
 	"\nFunctions:\n"                                                           \
-	"(i) pg_ai_insight(<text column>,\n\
-                   '<prompt> eg: Get summary of the following in 1 line')  \n\n"                                       \
-	"(ii) pg_ai_insight_agg(<text column>,\n\
-                        '<prompt agg> eg: Choose a topic for the following:') \n"
+	"(i) pg_ai_insight(<column_name>,\n"                                       \
+	"                  '<prompt> eg: Get summary of the following in 1 "       \
+	"line')\n\n"                                                               \
+	"(ii) pg_ai_insight_agg(<col_name>,\n"                                     \
+	"                       '<prompt agg> eg: Choose a topic for the "         \
+	"following:')\n"
 /* -----------------gpt service >8---------- */
 
 /* -----------------8< embeddings service ---------- */
@@ -34,12 +36,16 @@
 
 #define EMBEDDINGS_HELP                                                        \
 	"\nFunctions:\n"                                                           \
-	"(ii) pg_ai_create_vector_store(store     => '<new store name>', \n\
-                                sql_query => 'SQL query from which the store is made.', \n\
-                                prompt    => '<natural language prompt>' )\n\n"       \
-	"(ii) pg_ai_query_vector_store(store    => '<new store name>', \n\
-                               nl_query => '<natural language prompt>', \n\
-                               count    => <count of records to fetch>')\n"
+	"(i) pg_ai_create_vector_store(store => '<new store name>', \n"            \
+	"                               sql_query => 'SQL query from which the "   \
+	"store is made.', \n"                                                      \
+	"                               notes => '<notes on the result set>' "     \
+	")\n\n"                                                                    \
+	"(ii) pg_ai_query_vector_store(store => '<new store name>', \n"            \
+	"                              nl_query => '<natural language prompt>', "  \
+	"\n"                                                                       \
+	"                              count => <count of records to "             \
+	"fetch>')\n"
 
 #define SQL_QUERY_MAX_LENGTH 256 * 1024
 /*  seems const - TODO */
@@ -67,10 +73,12 @@
 
 #define IMAGE_GEN_HELP                                                         \
 	"\nFunctions:\n"                                                           \
-	"(i)  pg_ai_generate_image(<text column>,\n\
-                           '<prompt> eg:Make a picture of the following:')\n\n"                               \
-	"(ii) pg_ai_generate_image_agg(<text column>,\n\
-                      '<prompt agg> eg: Make a picture with the following:') \n"
+	"(i)  pg_ai_generate_image(<column_name>,\n"                               \
+	"                           '<prompt> eg:Make a picture of the "           \
+	"following:')\n\n"                                                         \
+	"(ii) pg_ai_generate_image_agg(<column_name>,\n"                           \
+	"                      '<prompt agg> eg: Make a picture with the "         \
+	"following:')\n"
 /*-------------- Image Gen service >8--------------*/
 
 /* -----------------8< moderation service ---------- */
@@ -84,8 +92,8 @@
 
 #define MODERATION_HELP                                                        \
 	"\nFunctions:\n"                                                           \
-	"(i) pg_ai_moderation(<text column>)  \n\n"                                \
-	"(ii) pg_ai_moderation_agg(<text column>) \n"
+	"(i) pg_ai_moderation(<column_name>)  \n\n"                                \
+	"(ii) pg_ai_moderation_agg(<column_name>) \n"
 /* -----------------moderation service >8---------- */
 
 #endif /* _OPENAI_CONFIG_H_ */

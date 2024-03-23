@@ -25,11 +25,11 @@ insights into data, providing new interpretations over time and with each query
 cd pg_ai
 make install
 ```
-- pg_ai uses libcurl for communication with the AI services, curl needs to be installed.
+- pg_ai uses libcurl for communication with remote AI services, curl needs to be installed.
 - needs [pgvector](https://github.com/pgvector/pgvector) extension for vector operations.
 
 
-## Getting Started
+## <span>Getting Started</span> (the pg_ai_* functions)
 
 ```sql
 CREATE EXTENSION pg_ai;
