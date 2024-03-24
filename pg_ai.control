@@ -1,6 +1,6 @@
 # pg_ai extension
-comment = 'PG AI'
-default_version = '1.0'
+comment = 'PgAi -  SQL functions for AI. pg_ai_*()'
+default_version = '0.0.1'
 module_pathname = '$libdir/pg_ai.so'
 relocatable = false
 #data = pg_ai.sql

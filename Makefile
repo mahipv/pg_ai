@@ -6,7 +6,7 @@ OBJDIR = obj
 SQLDIR = sql
 
 MODULES = $(MODULENAME)
-DATA = $(SQLDIR)/$(MODULENAME)--1.0.sql
+DATA = $(SQLDIR)/$(MODULENAME)--0.0.1.sql
 
 CFLAGS = -Wall -O2 -g
 SHLIB_LINK = -lcurl
