@@ -57,7 +57,7 @@ Create vector store for a dataset.
                                   notes => 'movies released after 1990');
 ```
 
-Query the vector store.
+Query the vector store with a natural language prompt.
 ```sql
 SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
                                 prompt => 'movies on time travel',
@@ -68,16 +68,17 @@ SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
 SET pg_ai.similarity_algorithm='cosine'(default)|'euclidean'|'inner_product';
 ```
 
-### Help
-```sql
-SELECT pg_ai_help();
-```
-
-## More Supported Models
+### More functions and supported models
 
 [Moderations](README_moderations.md)
 
 [Text to Image](README_image_gen.md)
+
+
+### Help
+```sql
+SELECT pg_ai_help();
+```
 
 ## Notes
 

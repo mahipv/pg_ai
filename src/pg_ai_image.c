@@ -32,28 +32,26 @@ Datum pg_ai_generate_image(PG_FUNCTION_ARGS)
 	return_value =
 		initialize_service(SERVICE_OPENAI, MODEL_OPENAI_IMAGE_GEN, ai_service);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
 
 	/* set options based on parameters and read from guc */
-	return_value = (ai_service->set_and_validate_options)(ai_service, fcinfo);
+	return_value = SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 	if (return_value)
-		ereport(ERROR, (errmsg("Error: Invalid Options\n")));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));
 
 	/* set the service data to be sent to the AI service	*/
-	return_value = (ai_service->set_service_data)(
-		ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
+	return_value =
+		SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
-										 service data"));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));
 
 	/* prepare for transfer */
-	return_value = (ai_service->prepare_for_transfer)(ai_service);
+	return_value = PREPARE_FOR_TRANSFER(ai_service);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
-										 transfer data"));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_PREP_TNSFR));
 
 	/* call the transfer */
-	(ai_service->rest_transfer)(ai_service);
+	REST_TRANSFER(ai_service);
 
 	/* copy the result to old mem conext and free the function context */
 	MemoryContextSwitchTo(old_context);
@@ -96,13 +94,12 @@ Datum pg_ai_generate_image_agg_transfn(PG_FUNCTION_ARGS)
 		return_value = initialize_service(SERVICE_OPENAI,
 										  MODEL_OPENAI_IMAGE_GEN, ai_service);
 		if (return_value)
-			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
 		ai_service->service_data->request[0] = '\0';
 
-		return_value =
-			(ai_service->set_and_validate_options)(ai_service, fcinfo);
+		return_value = SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 		if (return_value)
-			PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));
 
 		MemoryContextSwitchTo(old_context);
 		fcinfo->flinfo->fn_extra = ai_service;
@@ -112,11 +109,10 @@ Datum pg_ai_generate_image_agg_transfn(PG_FUNCTION_ARGS)
 	if (!PG_ARGISNULL(1))
 	{
 		/* set the service data to be sent to the AI service	*/
-		return_value = (ai_service->set_service_data)(
-			ai_service, text_to_cstring(PG_GETARG_TEXT_P(1)));
+		return_value =
+			SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(1)));
 		if (return_value)
-			PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
-											 service data"));
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));
 	}
 
 	PG_RETURN_POINTER(ai_service);
@@ -146,7 +142,7 @@ Datum pg_ai_generate_image_agg_finalfn(PG_FUNCTION_ARGS)
 										 transfer data"));
 
 	/* call the transfer */
-	(ai_service->rest_transfer)(ai_service);
+	REST_TRANSFER(ai_service);
 
 	return_text = cstring_to_text((char *)(ai_service->rest_response->data));
 

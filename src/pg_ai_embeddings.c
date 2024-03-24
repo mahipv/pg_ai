@@ -6,6 +6,62 @@
 #include "guc/pg_ai_guc.h"
 #include "rest/rest_transfer.h"
 
+/* struct to maintain state between SRF calls */
+typedef struct SrfQueryData
+{
+	int current_row;
+	int max_rows;
+	/* result set from the vector store */
+	SPITupleTable *tuble_table;
+} SrfQueryData;
+
+/*
+ * Helper: Given a tuple descriptor, print the column names.
+ */
+static void print_meta_data(TupleDesc tupdesc)
+{
+	int i;
+	StringInfo header = makeStringInfo();
+	appendStringInfo(header, "METADATA (");
+	for (i = 0; i < tupdesc->natts; i++)
+	{
+		Form_pg_attribute attr = TupleDescAttr(tupdesc, i);
+		appendStringInfo(header, " %s ", NameStr(attr->attname));
+	}
+	appendStringInfo(header, ")");
+	ereport(INFO, errmsg("%s", header->data));
+}
+
+/*
+ * Helper: After the SPI_execution of a query, process the result set.
+ * Hides the columns of the result set that are not required for the user.
+ */
+static void process_result_set(AIService *ai_service, FuncCallContext *funcctx)
+{
+	char pk_col[COLUMN_NAME_LEN];
+	char *hide_cols[] = {EMBEDDINGS_COLUMN_NAME, OPTION_SIMILARITY_ALGORITHM,
+						 pk_col};
+	int hide_col_count = sizeof(hide_cols) / sizeof(hide_cols[0]);
+	SrfQueryData *query_data;
+
+	/* structure to maintain the call state for the SRF */
+	query_data = palloc(sizeof(SrfQueryData));
+	query_data->current_row = 0;
+	query_data->max_rows = SPI_processed;
+	query_data->tuble_table = SPI_tuptable;
+	funcctx->user_fctx = query_data;
+
+	funcctx->tuple_desc = BlessTupleDesc(SPI_tuptable->tupdesc);
+
+	/* hide the columns that are not required like PK, vector... */
+	make_pk_col_name(
+		pk_col, COLUMN_NAME_LEN,
+		get_option_value(ai_service->service_data->options, OPTION_STORE_NAME));
+	query_data->tuble_table = remove_columns_from_spitb(
+		query_data->tuble_table, &(funcctx->tuple_desc), (char **)hide_cols,
+		hide_col_count);
+}
+
 /*
  * The implementation of SQL FUNCTION create_vector_store.
  */
@@ -35,28 +91,26 @@ Datum pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 	return_value =
 		initialize_service(SERVICE_OPENAI, MODEL_OPENAI_EMBEDDINGS, ai_service);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
 
 	/* set options based on parameters and read from guc */
-	return_value = (ai_service->set_and_validate_options)(ai_service, fcinfo);
+	return_value = SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 	if (return_value)
-		ereport(ERROR, (errmsg("Error: Invalid Options\n")));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));
 
 	/* set the service data to be sent to the AI service	*/
-	return_value = (ai_service->set_service_data)(
-		ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
+	return_value =
+		SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
-										 service data"));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));
 
 	/* prepare for transfer */
-	return_value = (ai_service->prepare_for_transfer)(ai_service);
+	return_value = PREPARE_FOR_TRANSFER(ai_service);
 	if (return_value)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
-										 transfer data"));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_PREP_TNSFR));
 
 	/* call the transfer */
-	(ai_service->rest_transfer)(ai_service);
+	REST_TRANSFER(ai_service);
 
 	/* copy the result to old mem conext and free the function context */
 	MemoryContextSwitchTo(old_context);
@@ -71,14 +125,6 @@ Datum pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 /*
  * The implementation of SQL FUNCTION query_vector_store.
  */
-typedef struct SrfQueryData
-{
-	int current_row;
-	int max_rows;
-	bool print_header_info;
-	SPITupleTable *tuble_table;
-} SrfQueryData;
-
 PG_FUNCTION_INFO_V1(pg_ai_query_vector_store);
 Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 {
@@ -88,16 +134,9 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 	Datum result;
 	char *query_string;
 	uint32_t spi_result;
-	int i;
-	int col_count;
 	HeapTuple tuple;
-	StringInfo header;
 	AIService *ai_service;
 	int return_value;
-	char pk_col[COLUMN_NAME_LEN];
-	char *hide_cols[] = {EMBEDDINGS_COLUMN_NAME, OPTION_SIMILARITY_ALGORITHM,
-						 pk_col};
-	int hide_col_count = sizeof(hide_cols) / sizeof(hide_cols[0]);
 
 	if (SRF_IS_FIRSTCALL())
 	{
@@ -107,43 +146,35 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 		query_string = palloc0(SERVICE_MAX_RESPONSE_SIZE);
 		ai_service->memory_context = funcctx->multi_call_memory_ctx;
 
-		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
 		/* initialize based on the service and model */
+		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
 		return_value = initialize_service(SERVICE_OPENAI,
 										  MODEL_OPENAI_EMBEDDINGS, ai_service);
 		if (return_value)
-			PG_RETURN_TEXT_P(cstring_to_text("Unsupported service."));
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
 
 		/* pass on the arguments to the service to validate */
-		return_value =
-			(ai_service->set_and_validate_options)(ai_service, fcinfo);
+		return_value = SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 		if (return_value)
-			PG_RETURN_TEXT_P(cstring_to_text("Error: Invalid Options"));
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));
 
 		/* initialize for the data transfer */
-		return_value = (ai_service->set_service_data)(ai_service, NULL);
+		return_value = SET_SERVICE_DATA(ai_service, NULL);
 		if (return_value)
-			PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot make\
-											  options"));
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));
 
 		/* prepare for transfer */
-		return_value = (ai_service->prepare_for_transfer)(ai_service);
+		return_value = PREPARE_FOR_TRANSFER(ai_service);
 		if (return_value)
-			PG_RETURN_TEXT_P(cstring_to_text("Internal error: cannot set \
-										 transfer data"));
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_PREP_TNSFR));
 
 		/* call the transfer. The rest call will return the query string with
 		 * the vectors for the natural language query */
-		(ai_service->rest_transfer)(ai_service);
+		REST_TRANSFER(ai_service);
 
 		/* get the query string and execute */
 		sprintf(query_string, "%s",
 				(char *)(ai_service->service_data->response));
-
-		query_data = palloc(sizeof(SrfQueryData));
-		query_data->current_row = 0;
-		query_data->print_header_info = true;
-		funcctx->user_fctx = query_data;
 
 		/* connect to the server and retrive the matching data */
 		spi_result = SPI_connect();
@@ -153,6 +184,8 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 							errmsg("Cnnection failed with error code %d",
 								   spi_result)));
 		}
+
+		/* execute the query */
 		spi_result =
 			SPI_execute(query_string, true /* read only */, 0 /* all tuples */);
 
@@ -163,40 +196,18 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 								   spi_result)));
 		}
 
-		query_data->max_rows = SPI_processed;
-		query_data->tuble_table = SPI_tuptable;
-		funcctx->tuple_desc = BlessTupleDesc(SPI_tuptable->tupdesc);
-
-		make_pk_col_name(pk_col, COLUMN_NAME_LEN,
-						 get_option_value(ai_service->service_data->options,
-										  OPTION_STORE_NAME));
-		query_data->tuble_table = remove_columns_from_spitb(
-			query_data->tuble_table, &(funcctx->tuple_desc), (char **)hide_cols,
-			hide_col_count);
+		/* process the resulset */
+		process_result_set(ai_service, funcctx);
+		print_meta_data(funcctx->tuple_desc);
 		MemoryContextSwitchTo(oldcontext);
 	} /* end of first call */
 
+	/*
+	 * This section is executed for all the cols of the SRF including the first
+	 * call
+	 */
 	funcctx = SRF_PERCALL_SETUP();
 	query_data = funcctx->user_fctx;
-
-	/* print a header TODO: add relation name to the col name */
-	if (query_data->print_header_info)
-	{
-		query_data->print_header_info = false;
-		col_count = funcctx->tuple_desc->natts;
-		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
-		header = makeStringInfo();
-		appendStringInfo(header, "METADATA (");
-		for (i = 0; i < col_count; i++)
-		{
-			Form_pg_attribute attr = TupleDescAttr(funcctx->tuple_desc, i);
-
-			appendStringInfo(header, " %s ", NameStr(attr->attname));
-		}
-		appendStringInfo(header, ")");
-		MemoryContextSwitchTo(oldcontext);
-		ereport(INFO, errmsg("%s", header->data));
-	}
 
 	/* As long as there is data to be returned */
 	if (query_data->current_row < query_data->max_rows)

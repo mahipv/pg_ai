@@ -6,6 +6,7 @@
 #include "postgres.h"
 
 #include "ai_config.h"
+#include "ai_error.h"
 
 /*
  * struct for the curl REST request info
@@ -160,8 +161,6 @@ typedef struct AIService
 
 } AIService;
 
-#define IS_PG_AI_FUNCTION(flag) (ai_service->function_flags & flag)
-
 void reset_service(AIService *ai_service);
 int initialize_service(const int service_flags, const int model_flags,
 					   AIService *ai_service);
@@ -170,5 +169,19 @@ const char *get_service_description(const AIService *ai_service);
 const char *get_model_name(const AIService *ai_service);
 const char *get_model_description(const AIService *ai_service);
 void define_common_options(void *ai_service);
+
+/* Macros to call the functions in the AIService */
+#define SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo)                           \
+	((SetAndValidateOptions)(ai_service->set_and_validate_options))(           \
+		ai_service, fcinfo)
+
+#define SET_SERVICE_DATA(ai_service, data)                                     \
+	((SetServiceData)(ai_service->set_service_data))(ai_service, data)
+
+#define PREPARE_FOR_TRANSFER(ai_service)                                       \
+	((PrepareForTransfer)(ai_service->prepare_for_transfer))(ai_service)
+
+#define REST_TRANSFER(ai_service)                                              \
+	((RestTransfer)(ai_service->rest_transfer))(ai_service)
 
 #endif /* _AI_SERVICE_H_ */
