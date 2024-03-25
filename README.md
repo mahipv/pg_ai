@@ -29,7 +29,7 @@ make install
 - needs [pgvector](https://github.com/pgvector/pgvector) extension for vector operations.
 
 
-## <span>Getting Started</span> (the pg_ai_* functions)
+## Getting Started (the pg_ai_* functions)
 
 ```sql
 CREATE EXTENSION pg_ai;
@@ -47,7 +47,7 @@ SELECT col1, col2, pg_ai_insight(col1) AS insight FROM my_table WHERE id > 5;
 
 Aggregate version of the above function.
 ```sql
-SELECT pg_ai_insight_agg(col1, 'Suggest a topic name for the values') AS topic FROM my_table WHERE id > 5;
+SELECT pg_ai_insight_agg(col1, 'Suggest a topic for these values') AS topic FROM my_table WHERE id > 5;
 ```
 
 Create vector store for a dataset.

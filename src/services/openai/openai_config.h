@@ -28,7 +28,7 @@
 /* -----------------gpt service >8---------- */
 
 /* -----------------8< embeddings service ---------- */
-#define MODEL_OPENAI_EMBEDDINGS_NAME "ada"
+#define MODEL_OPENAI_EMBEDDINGS_NAME "text-embedding-ada-002"
 #define MODEL_OPENAI_EMBEDDINGS_DESCRIPTION "OpenAI's embeddings model(vectors)"
 
 #define EMBEDDINGS_API_URL "https://api.openai.com/v1/embeddings"

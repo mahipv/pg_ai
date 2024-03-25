@@ -307,7 +307,7 @@ int embeddings_add_service_headers(CURL *curl, struct curl_slist **headers,
  * Callback to make the POST header for the REST transfer.
  */
 #define EMBEDDINGS_PREFIX "{\"input\":"
-#define EMBEDDINGS_MODEL ",\"model\":\"text-embedding-ada-002\"}"
+#define EMBEDDINGS_MODEL ",\"model\":\"" MODEL_OPENAI_EMBEDDINGS_NAME "\"}"
 void embeddings_post_header_maker(char *buffer, const size_t maxlen,
 								  const char *data, const size_t len)
 {
