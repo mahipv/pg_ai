@@ -122,6 +122,8 @@
 #define PG_AI_DEBUG_2 2
 #define PG_AI_DEBUG_3 3
 
+#define PG_AI_MCTX "pg_ai_memory_context"
+
 #define is_debug_level(level) (ai_service->debug_level >= level)
 
 #endif /* _AI_CONFIG_H_ */

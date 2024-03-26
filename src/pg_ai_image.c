@@ -16,13 +16,11 @@ Datum pg_ai_generate_image(PG_FUNCTION_ARGS)
 
 	/* check for the column name whose value is to be interpreted */
 	if (PG_ARGISNULL(0))
-		ereport(ERROR,
-				(errmsg("Incorrect parameters: please specify the column \
-						 name\n")));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(NULL_STR));
 
 	/* Create a new memory context for this PgAi function */
-	func_context = AllocSetContextCreate(
-		CurrentMemoryContext, "ai functions context", ALLOCSET_DEFAULT_SIZES);
+	func_context = AllocSetContextCreate(CurrentMemoryContext, PG_AI_MCTX,
+										 ALLOCSET_DEFAULT_SIZES);
 	old_context = MemoryContextSwitchTo(func_context);
 	ai_service->memory_context = func_context;
 
@@ -107,9 +105,10 @@ Datum pg_ai_generate_image_agg_finalfn(PG_FUNCTION_ARGS)
 	AIService *ai_service;
 	text *return_text;
 
+	/* ai_service will not created if all values of column are NULL */
 	ai_service = (AIService *)PG_GETARG_POINTER(0);
 	if (ai_service == NULL)
-		PG_RETURN_TEXT_P(cstring_to_text("Internal Error"));
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(NULL_STR));
 
 	/* prepare for transfer */
 	PREPARE_FOR_TRANSFER(ai_service);

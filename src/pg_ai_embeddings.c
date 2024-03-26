@@ -73,15 +73,13 @@ Datum pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 	MemoryContext old_context;
 	text *return_text;
 
-	/* check for the column name whose value is to be interpreted */
-	if (PG_ARGISNULL(0))
-		ereport(ERROR,
-				(errmsg("Incorrect parameters: please specify the column \
-						 name\n")));
+	/* check for the column to be interpreted */
+	if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(ARG_NULL));
 
 	/* Create a new memory context for this PgAi function */
-	func_context = AllocSetContextCreate(
-		CurrentMemoryContext, "ai functions context", ALLOCSET_DEFAULT_SIZES);
+	func_context = AllocSetContextCreate(CurrentMemoryContext, PG_AI_MCTX,
+										 ALLOCSET_DEFAULT_SIZES);
 	old_context = MemoryContextSwitchTo(func_context);
 	ai_service->memory_context = func_context;
 
