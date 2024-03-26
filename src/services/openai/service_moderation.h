@@ -1,7 +1,7 @@
 #ifndef _SERVICE_MODERATION_H_
 #define _SERVICE_MODERATION_H_
 
-#include "ai_service.h"
+#include "core/ai_service.h"
 
 /* calls made from Pg <-> PgAi */
 void moderation_initialize_service(void *service);

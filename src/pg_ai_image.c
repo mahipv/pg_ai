@@ -2,9 +2,7 @@
 #include <funcapi.h>
 #include <utils/builtins.h>
 
-#include "rest/rest_transfer.h"
-#include "ai_service.h"
-#include "guc/pg_ai_guc.h"
+#include "core/ai_service.h"
 
 PG_FUNCTION_INFO_V1(pg_ai_generate_image);
 Datum pg_ai_generate_image(PG_FUNCTION_ARGS)

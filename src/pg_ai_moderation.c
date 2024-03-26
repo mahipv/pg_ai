@@ -2,9 +2,7 @@
 #include <funcapi.h>
 #include <utils/builtins.h>
 
-#include "rest/rest_transfer.h"
-#include "ai_service.h"
-#include "guc/pg_ai_guc.h"
+#include "core/ai_service.h"
 
 /*
  * The implementation of SQL FUNCTION get_insight. Refer to the .sql file for

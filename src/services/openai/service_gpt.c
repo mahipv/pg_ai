@@ -1,9 +1,9 @@
 #include "service_gpt.h"
 
-#include "utils/builtins.h"
+#include <utils/builtins.h>
 
 #include "rest/rest_transfer.h"
-#include "utils_pg_ai.h"
+#include "core/utils_pg_ai.h"
 
 /*
  * Function to define aptions applicable to the gpt service calls.

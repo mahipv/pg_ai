@@ -1,7 +1,7 @@
 #ifndef _SERVICE_EMBEDDINGS_H_
 #define _SERVICE_EMBEDDINGS_H_
 
-#include "ai_service.h"
+#include "core/ai_service.h"
 
 #define EMBEDDINGS_SIMILARITY_COSINE "cosine"
 #define EMBEDDINGS_SIMILARITY_EUCLIDEAN "euclidean"

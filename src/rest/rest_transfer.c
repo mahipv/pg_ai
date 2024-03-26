@@ -1,6 +1,6 @@
 #include "rest_transfer.h"
-#include "postgres.h"
-#include "utils_pg_ai.h"
+
+#include "core/utils_pg_ai.h"
 
 /*
  * Initialize the transfer buffers required for the REST transfer.

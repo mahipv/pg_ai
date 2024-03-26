@@ -1,7 +1,7 @@
 #ifndef _SERVICE_GPT_H_
 #define _SERVICE_GPT_H_
 
-#include "ai_service.h"
+#include "core/ai_service.h"
 
 /* calls made from Pg <-> PgAi */
 void gpt_initialize_service(void *service);

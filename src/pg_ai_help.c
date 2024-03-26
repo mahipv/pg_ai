@@ -2,7 +2,7 @@
 #include <funcapi.h>
 #include <utils/builtins.h>
 
-#include "ai_service.h"
+#include "core/ai_service.h"
 
 /*
  * Implementation of SQL FUNCTION pg_ai_help().

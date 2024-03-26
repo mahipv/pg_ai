@@ -2,9 +2,9 @@
 
 #include "executor/spi.h"
 
-#include "rest/rest_transfer.h"
+#include "core/utils_pg_ai.h"
 #include "guc/pg_ai_guc.h"
-#include "utils_pg_ai.h"
+#include "rest/rest_transfer.h"
 
 /*
  * Function to define aptions applicable to the embeddings service calls.

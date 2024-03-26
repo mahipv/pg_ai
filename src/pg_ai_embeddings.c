@@ -1,10 +1,8 @@
 #include <postgres.h>
 #include <funcapi.h>
 
-#include "ai_service.h"
-#include "utils_pg_ai.h"
-#include "guc/pg_ai_guc.h"
-#include "rest/rest_transfer.h"
+#include "core/ai_service.h"
+#include "core/utils_pg_ai.h"
 
 /* struct to maintain state between SRF calls */
 typedef struct SrfQueryData
