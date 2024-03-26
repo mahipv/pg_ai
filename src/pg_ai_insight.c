@@ -14,7 +14,6 @@ PG_FUNCTION_INFO_V1(pg_ai_insight);
 Datum pg_ai_insight(PG_FUNCTION_ARGS)
 {
 	AIService *ai_service = palloc0(sizeof(AIService));
-	int return_value;
 	MemoryContext func_context;
 	MemoryContext old_context;
 	text *return_text;
@@ -33,26 +32,16 @@ Datum pg_ai_insight(PG_FUNCTION_ARGS)
 
 	/* set the function specific flag */
 	ai_service->function_flags |= FUNCTION_GET_INSIGHT;
-	return_value =
-		initialize_service(SERVICE_OPENAI, MODEL_OPENAI_GPT, ai_service);
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
+	INITIALIZE_SERVICE(SERVICE_OPENAI, MODEL_OPENAI_GPT, ai_service);
 
 	/* set options based on parameters and read from guc */
-	return_value = SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));
+	SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 
 	/* set the service data to be sent to the AI service	*/
-	return_value =
-		SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));
+	SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
 
 	/* prepare for transfer */
-	return_value = PREPARE_FOR_TRANSFER(ai_service);
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_PREP_TNSFR));
+	PREPARE_FOR_TRANSFER(ai_service);
 
 	/* call the transfer */
 	REST_TRANSFER(ai_service);
@@ -79,7 +68,6 @@ Datum pg_ai_insight_agg_transfn(PG_FUNCTION_ARGS)
 	MemoryContext old_context;
 	MemoryContext agg_context;
 	AIService *ai_service;
-	int return_value;
 
 	if (!AggCheckCallContext(fcinfo, &agg_context))
 		ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
@@ -95,29 +83,18 @@ Datum pg_ai_insight_agg_transfn(PG_FUNCTION_ARGS)
 
 		ai_service->function_flags |= FUNCTION_GET_INSIGHT_AGGREGATE;
 		/* get these settings from guc */
-		return_value =
-			initialize_service(SERVICE_OPENAI, MODEL_OPENAI_GPT, ai_service);
-		if (return_value)
-			PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
+		INITIALIZE_SERVICE(SERVICE_OPENAI, MODEL_OPENAI_GPT, ai_service);
 		ai_service->service_data->request[0] = '\0';
 
-		return_value = SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
-		if (return_value)
-			PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));
+		SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 
 		MemoryContextSwitchTo(old_context);
 		fcinfo->flinfo->fn_extra = ai_service;
 	}
 
-	/* accumulate non NULL values */
+	/* accumulate non NULL values and set the service data */
 	if (!PG_ARGISNULL(1))
-	{
-		/* set the service data to be sent to the AI service	*/
-		return_value =
-			SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(1)));
-		if (return_value)
-			PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));
-	}
+		SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(1)));
 
 	PG_RETURN_POINTER(ai_service);
 }
@@ -132,7 +109,6 @@ PG_FUNCTION_INFO_V1(pg_ai_insight_agg_finalfn);
 Datum pg_ai_insight_agg_finalfn(PG_FUNCTION_ARGS)
 {
 	AIService *ai_service;
-	int return_value;
 	text *return_text;
 
 	ai_service = (AIService *)PG_GETARG_POINTER(0);
@@ -140,9 +116,7 @@ Datum pg_ai_insight_agg_finalfn(PG_FUNCTION_ARGS)
 		PG_RETURN_TEXT_P(cstring_to_text("Internal Error"));
 
 	/* prepare for transfer */
-	return_value = PREPARE_FOR_TRANSFER(ai_service);
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_PREP_TNSFR));
+	PREPARE_FOR_TRANSFER(ai_service);
 
 	/* call the transfer */
 	REST_TRANSFER(ai_service);

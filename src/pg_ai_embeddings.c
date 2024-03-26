@@ -69,7 +69,6 @@ PG_FUNCTION_INFO_V1(pg_ai_create_vector_store);
 Datum pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 {
 	AIService *ai_service = palloc0(sizeof(AIService));
-	int return_value;
 	MemoryContext func_context;
 	MemoryContext old_context;
 	text *return_text;
@@ -88,26 +87,16 @@ Datum pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 
 	/* set the function specific flag */
 	ai_service->function_flags |= FUNCTION_CREATE_VECTOR_STORE;
-	return_value =
-		initialize_service(SERVICE_OPENAI, MODEL_OPENAI_EMBEDDINGS, ai_service);
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
+	INITIALIZE_SERVICE(SERVICE_OPENAI, MODEL_OPENAI_EMBEDDINGS, ai_service);
 
 	/* set options based on parameters and read from guc */
-	return_value = SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));
+	SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 
 	/* set the service data to be sent to the AI service	*/
-	return_value =
-		SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));
+	SET_SERVICE_DATA(ai_service, text_to_cstring(PG_GETARG_TEXT_P(0)));
 
 	/* prepare for transfer */
-	return_value = PREPARE_FOR_TRANSFER(ai_service);
-	if (return_value)
-		PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_PREP_TNSFR));
+	PREPARE_FOR_TRANSFER(ai_service);
 
 	/* call the transfer */
 	REST_TRANSFER(ai_service);
@@ -136,7 +125,6 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 	uint32_t spi_result;
 	HeapTuple tuple;
 	AIService *ai_service;
-	int return_value;
 
 	if (SRF_IS_FIRSTCALL())
 	{
@@ -148,25 +136,16 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 
 		/* initialize based on the service and model */
 		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
-		return_value = initialize_service(SERVICE_OPENAI,
-										  MODEL_OPENAI_EMBEDDINGS, ai_service);
-		if (return_value)
-			PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
+		INITIALIZE_SERVICE(SERVICE_OPENAI, MODEL_OPENAI_EMBEDDINGS, ai_service);
 
 		/* pass on the arguments to the service to validate */
-		return_value = SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
-		if (return_value)
-			PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));
+		SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 
 		/* initialize for the data transfer */
-		return_value = SET_SERVICE_DATA(ai_service, NULL);
-		if (return_value)
-			PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));
+		SET_SERVICE_DATA(ai_service, NULL);
 
 		/* prepare for transfer */
-		return_value = PREPARE_FOR_TRANSFER(ai_service);
-		if (return_value)
-			PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_PREP_TNSFR));
+		PREPARE_FOR_TRANSFER(ai_service);
 
 		/* call the transfer. The rest call will return the query string with
 		 * the vectors for the natural language query */

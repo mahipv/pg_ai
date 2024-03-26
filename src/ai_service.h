@@ -170,16 +170,37 @@ const char *get_model_name(const AIService *ai_service);
 const char *get_model_description(const AIService *ai_service);
 void define_common_options(void *ai_service);
 
-/* Macros to call the functions in the AIService */
+/* Implementations of the SQL functions to call these macros in order */
+#define INITIALIZE_SERVICE(service, model, ai_service)                         \
+	do                                                                         \
+	{                                                                          \
+		if (initialize_service(service, model, ai_service))                    \
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));               \
+	} while (0)
+
 #define SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo)                           \
-	((SetAndValidateOptions)(ai_service->set_and_validate_options))(           \
-		ai_service, fcinfo)
+	do                                                                         \
+	{                                                                          \
+		if (((SetAndValidateOptions)(ai_service->set_and_validate_options))(   \
+				ai_service, fcinfo))                                           \
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(INVALID_OPTIONS));                   \
+	} while (0)
 
 #define SET_SERVICE_DATA(ai_service, data)                                     \
-	((SetServiceData)(ai_service->set_service_data))(ai_service, data)
+	do                                                                         \
+	{                                                                          \
+		if (((SetServiceData)(ai_service->set_service_data))(ai_service,       \
+															 data))            \
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_DATA_ERR));                      \
+	} while (0)
 
 #define PREPARE_FOR_TRANSFER(ai_service)                                       \
-	((PrepareForTransfer)(ai_service->prepare_for_transfer))(ai_service)
+	do                                                                         \
+	{                                                                          \
+		if (((PrepareForTransfer)(ai_service->prepare_for_transfer))(          \
+				ai_service))                                                   \
+			PG_RETURN_TEXT_P(GET_ERR_TEXT(INT_PREP_TNSFR));                    \
+	} while (0)
 
 #define REST_TRANSFER(ai_service)                                              \
 	((RestTransfer)(ai_service->rest_transfer))(ai_service)
