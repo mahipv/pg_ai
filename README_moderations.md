@@ -16,10 +16,10 @@ SET pg_ai.api_key='sk-********q';
 
 Get the moderations for the column data.
 ```sql
-SELECT col1, pg_ai_moderation(col1) FROM messages_table WHERE id=1;
+SELECT col1, pg_ai_moderation(col1, NULL) FROM messages_table WHERE id=1;
 ```
 
 Aggregate version of the above function.
 ```sql
-SELECT pg_ai_moderation_agg(col1) FROM messages_table WHERE id<10;
+SELECT pg_ai_moderation_agg(col1, NULL) FROM messages_table WHERE id<10;
 ```

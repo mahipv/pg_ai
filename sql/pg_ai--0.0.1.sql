@@ -89,7 +89,8 @@ CREATE AGGREGATE pg_ai_generate_image_agg (column_name TEXT, prompt TEXT)
 * Function to get the moderation of the text.
 */
 CREATE OR REPLACE FUNCTION pg_ai_moderation(
-	column_name		TEXT
+	column_name		TEXT,
+	prompt         	TEXT = NULL
 )RETURNS TEXT AS 'MODULE_PATHNAME', 'pg_ai_moderation' LANGUAGE C IMMUTABLE;
 
 /*
@@ -97,15 +98,17 @@ CREATE OR REPLACE FUNCTION pg_ai_moderation(
 */
 CREATE OR REPLACE FUNCTION _pg_ai_moderation_agg_transfn(
 	state		internal,
-	column_name 	TEXT
+	column_name 	TEXT,
+	prompt      TEXT
 )RETURNS internal AS 'MODULE_PATHNAME', 'pg_ai_moderation_agg_transfn' LANGUAGE C IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION _pg_ai_moderation_agg_finalfn(
 	state		internal,
-	column_name  	TEXT
+	column_name  	TEXT,
+	prompt      TEXT
 )RETURNS TEXT AS 'MODULE_PATHNAME', 'pg_ai_moderation_agg_finalfn' LANGUAGE C IMMUTABLE;
 
-CREATE AGGREGATE pg_ai_moderation_agg (column_name TEXT)
+CREATE AGGREGATE pg_ai_moderation_agg (column_name TEXT, prompt TEXT)
 (
 	sfunc = _pg_ai_moderation_agg_transfn,
 	stype = internal,

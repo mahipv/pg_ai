@@ -52,7 +52,7 @@
 
 #define OPTION_SERVICE_PROMPT_AGG "promptagg"
 #define OPTION_SERVICE_PROMPT_AGG_DESC                                         \
-	"The prompt used for the aggregate function."
+	"The prompt to be used as input for the aggregate function."
 
 #define OPTION_STORE_NAME "store"
 #define OPTION_STORE_NAME_DESC                                                 \

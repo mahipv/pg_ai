@@ -92,8 +92,9 @@
 
 #define MODERATION_HELP                                                        \
 	"\nFunctions:\n"                                                           \
-	"(i) pg_ai_moderation(<column_name>)  \n\n"                                \
-	"(ii) pg_ai_moderation_agg(<column_name>) \n"
+	"(i) pg_ai_moderation(<column_name>, <prompt: additional text>)  \n\n"     \
+	"(ii) pg_ai_moderation_agg(<column_name>, <promptagg: additional text>) "  \
+	"\n"
 /* -----------------moderation service >8---------- */
 
 #endif /* _OPENAI_CONFIG_H_ */

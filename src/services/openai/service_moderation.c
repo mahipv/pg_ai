@@ -18,6 +18,19 @@ static void define_options(AIService *ai_service)
 					  OPTION_COLUMN_VALUE_DESC, OPTION_FLAG_HELP_DISPLAY,
 					  ai_service->service_data->request,
 					  SERVICE_MAX_REQUEST_SIZE);
+
+	/* options for the non-aggregate function */
+	if (ai_service->function_flags & FUNCTION_MODERATION)
+		define_new_option(option_list, OPTION_SERVICE_PROMPT,
+						  OPTION_SERVICE_PROMPT_DESC, OPTION_FLAG_HELP_DISPLAY,
+						  NULL /* storage ptr */, 0 /* max size */);
+
+	/* options for the aggregate function */
+	if (ai_service->function_flags & FUNCTION_MODERATION_AGGREGATE)
+		define_new_option(option_list, OPTION_SERVICE_PROMPT_AGG,
+						  OPTION_SERVICE_PROMPT_AGG_DESC,
+						  OPTION_FLAG_HELP_DISPLAY, NULL /* storage ptr */,
+						  0 /* max size */);
 }
 
 /*
@@ -56,8 +69,27 @@ void moderation_help(char *help_text, const size_t max_len)
  */
 int moderation_set_and_validate_options(void *service, void *function_options)
 {
+	PG_FUNCTION_ARGS = (FunctionCallInfo)function_options;
 	AIService *ai_service = (AIService *)service;
 	ServiceOption *options = ai_service->service_data->options;
+	int arg_offset;
+
+	/* aggregate functions get an extra argument at position 0 */
+	arg_offset =
+		(ai_service->function_flags & FUNCTION_MODERATION_AGGREGATE) ? 1 : 0;
+
+	/* set the default prompt or passed prompt based on the function */
+	if (!PG_ARGISNULL(1 + arg_offset))
+	{
+		if (ai_service->function_flags & FUNCTION_MODERATION_AGGREGATE)
+			set_option_value(options, OPTION_SERVICE_PROMPT_AGG,
+							 text_to_cstring(PG_GETARG_TEXT_P(1 + arg_offset)),
+							 false /* concat */);
+		else
+			set_option_value(options, OPTION_SERVICE_PROMPT,
+							 text_to_cstring(PG_GETARG_TEXT_P(1 + arg_offset)),
+							 false /* concat */);
+	}
 
 	/* check if all required args are set */
 	for (options = ai_service->service_data->options; options;
@@ -108,11 +140,25 @@ int moderation_prepare_for_transfer(void *service)
 {
 	AIService *ai_service = (AIService *)service;
 	ServiceOption *option_list = ai_service->service_data->options;
-	char prompt[2];
+	char prompt[SERVICE_DATA_SIZE];
 	size_t prompt_len;
 	ServiceOption *option;
+	char *prompt_str;
 
-	strcpy(prompt, "\"");
+	/* set the prompt based on the function */
+	if (ai_service->function_flags & FUNCTION_MODERATION)
+	{
+		prompt_str = get_option_value(option_list, OPTION_SERVICE_PROMPT);
+		snprintf(prompt, SERVICE_DATA_SIZE, "%s : \"",
+				 prompt_str ? prompt_str : "");
+	}
+
+	if (ai_service->function_flags & FUNCTION_MODERATION_AGGREGATE)
+	{
+		prompt_str = get_option_value(option_list, OPTION_SERVICE_PROMPT_AGG);
+		snprintf(prompt, SERVICE_DATA_SIZE, "%s : \"",
+				 prompt_str ? prompt_str : "");
+	}
 
 	/* check if the column values is too big */
 	prompt_len = strlen(prompt);
@@ -131,7 +177,8 @@ int moderation_prepare_for_transfer(void *service)
 	option->value_ptr[option->current_len + prompt_len] = '"';
 	option->value_ptr[option->current_len + prompt_len + 1] = '\0';
 
-	/* ereport(INFO,(errmsg("Req: %s\n",ai_service->service_data->request))); */
+	if (is_debug_level(PG_AI_DEBUG_3))
+		ereport(INFO, (errmsg("Req: %s\n", ai_service->service_data->request)));
 	init_rest_transfer((AIService *)ai_service);
 
 	return RETURN_ZERO;

@@ -13,7 +13,6 @@ Datum pg_ai_help(PG_FUNCTION_ARGS)
 	AIService *ai_service = palloc(sizeof(AIService));
 	char *display_string = palloc0(MAX_HELP_TEXT_SIZE);
 	size_t running_length = 0;
-	int return_value = 0;
 	char *help_text;
 	char *service_options;
 	int service_flags = 0x1;
@@ -35,9 +34,7 @@ Datum pg_ai_help(PG_FUNCTION_ARGS)
 		{
 			/* set all function falgs to define and display all options */
 			ai_service->function_flags |= ~0;
-			return_value =
-				initialize_service(service_flags, model_flags, ai_service);
-			if (return_value) /* no service */
+			if (initialize_service(service_flags, model_flags, ai_service))
 			{
 				/* if no models are supported then this service beyond last */
 				if (model_flags & 0x01)
