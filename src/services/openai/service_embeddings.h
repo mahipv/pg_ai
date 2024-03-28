@@ -20,10 +20,10 @@ void embeddings_rest_transfer(void *ai_service);
 void embeddings_set_service_buffers(RestRequest *rest_request,
 									RestResponse *rest_response,
 									ServiceData *service_data);
-void embeddings_post_header_maker(char *buffer, const size_t maxlen,
-								  const char *data, const size_t len);
-int embeddings_add_service_headers(CURL *curl, struct curl_slist **headers,
-								   void *service);
+int embeddings_add_rest_headers(CURL *curl, struct curl_slist **headers,
+								void *service);
+void embeddings_add_rest_data(char *buffer, const size_t maxlen,
+							  const char *data, const size_t len);
 
 /* TODO */
 int execute_query_spi(const char *query, bool read_only);

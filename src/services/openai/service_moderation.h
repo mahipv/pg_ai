@@ -16,9 +16,8 @@ void moderation_rest_transfer(void *ai_service);
 void moderation_set_service_buffers(RestRequest *rest_request,
 									RestResponse *rest_response,
 									ServiceData *service_data);
-void moderation_post_header_maker(char *buffer, const size_t maxlen,
-								  const char *data, const size_t len);
-int moderation_add_service_headers(CURL *curl, struct curl_slist **headers,
-								   void *service);
-
+int moderation_add_rest_headers(CURL *curl, struct curl_slist **headers,
+								void *service);
+void moderation_add_rest_data(char *buffer, const size_t maxlen,
+							  const char *data, const size_t len);
 #endif /* _SERVICE_MODERATION_H_ */

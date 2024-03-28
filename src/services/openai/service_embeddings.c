@@ -285,8 +285,8 @@ void embeddings_set_service_buffers(RestRequest *rest_request,
  * call back from REST transfer layer. The curl headers are
  * constructed from this list.
  */
-int embeddings_add_service_headers(CURL *curl, struct curl_slist **headers,
-								   void *service)
+int embeddings_add_rest_headers(CURL *curl, struct curl_slist **headers,
+								void *service)
 {
 	AIService *ai_service = (AIService *)service;
 	struct curl_slist *curl_headers = *headers;
@@ -308,8 +308,8 @@ int embeddings_add_service_headers(CURL *curl, struct curl_slist **headers,
  */
 #define EMBEDDINGS_PREFIX "{\"input\":"
 #define EMBEDDINGS_MODEL ",\"model\":\"" MODEL_OPENAI_EMBEDDINGS_NAME "\"}"
-void embeddings_post_header_maker(char *buffer, const size_t maxlen,
-								  const char *data, const size_t len)
+void embeddings_add_rest_data(char *buffer, const size_t maxlen,
+							  const char *data, const size_t len)
 {
 	strcpy(buffer, EMBEDDINGS_PREFIX);
 	strcat(buffer, "\"");

@@ -22,21 +22,20 @@ void reset_service(AIService *ai_service)
  */
 static int initialize_gpt(AIService *ai_service)
 {
-	/* PG <-> PG_AI functions */
+	/* PG <-> PgAi functions */
 	ai_service->init_service_options = gpt_initialize_service;
 	ai_service->set_and_validate_options = gpt_set_and_validate_options;
 	ai_service->set_service_data = gpt_set_service_data;
 	ai_service->prepare_for_transfer = gpt_prepare_for_transfer;
-	ai_service->get_service_help = gpt_help;
-	ai_service->cleanup_service_data = gpt_cleanup_service_data;
-
-	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = gpt_set_service_buffers;
-	ai_service->add_service_headers = gpt_add_service_headers;
-	ai_service->post_header_maker = gpt_post_header_maker;
-	ai_service->rest_transfer = gpt_rest_transfer;
+	ai_service->cleanup_service_data = gpt_cleanup_service_data;
+	ai_service->get_service_help = gpt_help;
 
-	return 0;
+	/* PgAi <-> REST functions */
+	ai_service->rest_transfer = gpt_rest_transfer;
+	ai_service->add_rest_headers = gpt_add_rest_headers;
+	ai_service->add_rest_data = gpt_add_rest_data;
+	return RETURN_ZERO;
 }
 
 /*
@@ -44,21 +43,20 @@ static int initialize_gpt(AIService *ai_service)
  */
 static int initialize_image_generator(AIService *ai_service)
 {
-	/* PG <-> PG_AI functions */
+	/* PG <-> PgAi functions */
 	ai_service->init_service_options = image_gen_initialize_service;
 	ai_service->set_and_validate_options = image_gen_set_and_validate_options;
 	ai_service->set_service_data = image_gen_set_service_data;
 	ai_service->prepare_for_transfer = image_gen_prepare_for_transfer;
-	ai_service->get_service_help = image_gen_help;
-	ai_service->cleanup_service_data = image_gen_cleanup_service_data;
-
-	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = image_gen_set_service_buffers;
-	ai_service->add_service_headers = image_gen_add_service_headers;
-	ai_service->post_header_maker = image_gen_post_header_maker;
-	ai_service->rest_transfer = image_gen_rest_transfer;
+	ai_service->cleanup_service_data = image_gen_cleanup_service_data;
+	ai_service->get_service_help = image_gen_help;
 
-	return 0;
+	/* PgAi <-> REST functions */
+	ai_service->rest_transfer = image_gen_rest_transfer;
+	ai_service->add_rest_headers = image_gen_add_rest_headers;
+	ai_service->add_rest_data = image_gen_add_rest_data;
+	return RETURN_ZERO;
 }
 
 /*
@@ -66,20 +64,20 @@ static int initialize_image_generator(AIService *ai_service)
  */
 static int initialize_embeddings(AIService *ai_service)
 {
-	/* PG <-> PG_AI functions */
+	/* PG <-> PgAi functions */
 	ai_service->init_service_options = embeddings_initialize_service;
 	ai_service->set_and_validate_options = embeddings_set_and_validate_options;
 	ai_service->set_service_data = embeddings_set_service_data;
 	ai_service->prepare_for_transfer = embeddings_prepare_for_transfer;
-	ai_service->get_service_help = embeddings_help;
-	ai_service->cleanup_service_data = embeddings_cleanup_service_data;
-
-	/* PG_AI <-> REST functions */
 	ai_service->set_service_buffers = embeddings_set_service_buffers;
-	ai_service->add_service_headers = embeddings_add_service_headers;
-	ai_service->post_header_maker = embeddings_post_header_maker;
+	ai_service->cleanup_service_data = embeddings_cleanup_service_data;
+	ai_service->get_service_help = embeddings_help;
+
+	/* PgAi <-> REST functions */
 	ai_service->rest_transfer = embeddings_rest_transfer;
-	return 0;
+	ai_service->add_rest_headers = embeddings_add_rest_headers;
+	ai_service->add_rest_data = embeddings_add_rest_data;
+	return RETURN_ZERO;
 }
 
 /*
@@ -92,16 +90,15 @@ static int initialize_moderation(AIService *ai_service)
 	ai_service->set_and_validate_options = moderation_set_and_validate_options;
 	ai_service->set_service_data = moderation_set_service_data;
 	ai_service->prepare_for_transfer = moderation_prepare_for_transfer;
-	ai_service->get_service_help = moderation_help;
+	ai_service->set_service_buffers = moderation_set_service_buffers;
 	ai_service->cleanup_service_data = moderation_cleanup_service_data;
+	ai_service->get_service_help = moderation_help;
 
 	/* PG_AI <-> REST functions */
-	ai_service->set_service_buffers = moderation_set_service_buffers;
-	ai_service->add_service_headers = moderation_add_service_headers;
-	ai_service->post_header_maker = moderation_post_header_maker;
 	ai_service->rest_transfer = moderation_rest_transfer;
-
-	return 0;
+	ai_service->add_rest_headers = moderation_add_rest_headers;
+	ai_service->add_rest_data = moderation_add_rest_data;
+	return RETURN_ZERO;
 }
 
 /*

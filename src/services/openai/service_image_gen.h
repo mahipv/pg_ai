@@ -16,9 +16,9 @@ void image_gen_rest_transfer(void *ai_service);
 void image_gen_set_service_buffers(RestRequest *rest_request,
 								   RestResponse *rest_response,
 								   ServiceData *service_data);
-void image_gen_post_header_maker(char *buffer, const size_t maxlen,
-								 const char *data, const size_t len);
-int image_gen_add_service_headers(CURL *curl, struct curl_slist **headers,
-								  void *service);
+int image_gen_add_rest_headers(CURL *curl, struct curl_slist **headers,
+							   void *service);
+void image_gen_add_rest_data(char *buffer, const size_t maxlen,
+							 const char *data, const size_t len);
 
 #endif /* _SERVICE_IMAGE_GEN_H_ */

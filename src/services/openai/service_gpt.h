@@ -13,12 +13,12 @@ int gpt_cleanup_service_data(void *ai_service);
 
 /* call backs from REST <-> PgAi */
 void gpt_rest_transfer(void *ai_service);
-void gpt_post_header_maker(char *buffer, const size_t maxlen, const char *data,
-						   const size_t len);
-int gpt_add_service_headers(CURL *curl, struct curl_slist **headers,
-							void *service);
 void gpt_set_service_buffers(RestRequest *rest_request,
 							 RestResponse *rest_response,
 							 ServiceData *service_data);
+int gpt_add_rest_headers(CURL *curl, struct curl_slist **headers,
+						 void *service);
+void gpt_add_rest_data(char *buffer, const size_t maxlen, const char *data,
+					   const size_t len);
 
 #endif /* _SERVICE_GPT_H_ */

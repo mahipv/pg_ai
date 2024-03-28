@@ -217,8 +217,8 @@ void image_gen_set_service_buffers(RestRequest *rest_request,
  * call back from REST transfer layer. The curl headers are
  * constructed from this list.
  */
-int image_gen_add_service_headers(CURL *curl, struct curl_slist **headers,
-								  void *service)
+int image_gen_add_rest_headers(CURL *curl, struct curl_slist **headers,
+							   void *service)
 {
 	AIService *ai_service = (AIService *)service;
 	struct curl_slist *curl_headers = *headers;
@@ -242,8 +242,8 @@ int image_gen_add_service_headers(CURL *curl, struct curl_slist **headers,
 #define IMAGE_GEN_PRE_PREFIX "{\"prompt\":\""
 #define IMAGE_GEN_POST_PREFIX                                                  \
 	"\",\"num_images\":1,\"size\":\"1024x1024\",\"response_format\":\"url\"}"
-void image_gen_post_header_maker(char *buffer, const size_t maxlen,
-								 const char *data, const size_t len)
+void image_gen_add_rest_data(char *buffer, const size_t maxlen,
+							 const char *data, const size_t len)
 {
 	strcpy(buffer, IMAGE_GEN_PRE_PREFIX);
 	strcat(buffer, data);

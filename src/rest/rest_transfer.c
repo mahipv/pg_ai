@@ -127,10 +127,7 @@ static void make_curl_headers(CURL *curl, AIService *ai_service)
 	curl_easy_setopt(curl, CURLOPT_URL,
 					 get_option_value(ai_service->service_data->options,
 									  OPTION_ENDPOINT_URL));
-
-	/* TODO Assert */
-	if (ai_service->add_service_headers)
-		(ai_service->add_service_headers)(curl, &headers, ai_service);
+	ai_service->add_rest_headers(curl, &headers, ai_service);
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 }
 
@@ -155,7 +152,7 @@ void rest_transfer(AIService *ai_service)
 	CURLcode res;
 	char post_data[POST_DATA_SIZE];
 	char *encoded_prompt;
-	char error_msg[1024];
+	char error_msg[ERROR_MSG_LEN];
 	size_t max_word_count;
 
 	/* TODO check for the size dynamically even before the trasfer is called */
@@ -171,8 +168,12 @@ void rest_transfer(AIService *ai_service)
 	curl = curl_easy_init();
 	if (curl)
 	{
+		/* set function to print curl request/response */
 		curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, debug_curl);
-		/* curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); */
+		/* CURLOPT_DEBUGFUNCTION has no effect if CURLOPT_VERBOSE is not set */
+		if (is_debug_level(PG_AI_DEBUG_3))
+			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+
 		make_curl_headers(curl, ai_service);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA,
@@ -186,10 +187,11 @@ void rest_transfer(AIService *ai_service)
 		curl_easy_setopt(curl, CURLOPT_POST, 1);
 		encoded_prompt = curl_easy_escape(curl, ai_service->rest_request->data,
 										  ai_service->rest_request->data_size);
-		(ai_service->post_header_maker)(post_data, POST_DATA_SIZE,
-										encoded_prompt, sizeof(encoded_prompt));
+		(ai_service->add_rest_data)(post_data, POST_DATA_SIZE, encoded_prompt,
+									sizeof(encoded_prompt));
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_data);
 
+		/* the actual REST data transfer */
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK)
 		{

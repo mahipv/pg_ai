@@ -215,8 +215,7 @@ void gpt_set_service_buffers(RestRequest *rest_request,
  * call back from REST transfer layer. The curl headers are
  * constructed from this list.
  */
-int gpt_add_service_headers(CURL *curl, struct curl_slist **headers,
-							void *service)
+int gpt_add_rest_headers(CURL *curl, struct curl_slist **headers, void *service)
 {
 	AIService *ai_service = (AIService *)service;
 	struct curl_slist *curl_headers = *headers;
@@ -245,8 +244,8 @@ int gpt_add_service_headers(CURL *curl, struct curl_slist **headers,
 #define JSON_DATA_TYPE_STRING "string"
 #define JSON_DATA_TYPE_INTEGER "integer"
 
-void gpt_post_header_maker(char *buffer, const size_t maxlen, const char *data,
-						   const size_t len)
+void gpt_add_rest_data(char *buffer, const size_t maxlen, const char *data,
+					   const size_t len)
 {
 	const char *data_types[] = {JSON_DATA_TYPE_STRING, JSON_DATA_TYPE_STRING,
 								JSON_DATA_TYPE_INTEGER};

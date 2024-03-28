@@ -79,13 +79,17 @@
 #define OPTION_ENDPOINT_URL_DESC "URL for the Rest API endpoint."
 /* ---------------------Function Arguments -->8------ */
 
+#define MAX_BYTE_VALUE 255
+
 /* buffer sizes */
 #define SERVICE_MAX_REQUEST_SIZE (1 * 1024 * 1024)
 #define SERVICE_MAX_RESPONSE_SIZE (1 * 1024 * 1024)
 
 /* default array lengths used within pg_ai */
-#define PG_AI_NAME_LENGTH 80
-#define PG_AI_DESC_LENGTH 255
+#define PG_AI_NAME_LENGTH MAX_BYTE_VALUE
+#define PG_AI_DESC_LENGTH MAX_BYTE_VALUE
+#define COLUMN_NAME_LEN MAX_BYTE_VALUE
+#define ERROR_MSG_LEN MAX_BYTE_VALUE
 
 /* service data sizes */
 #define SERVICE_DATA_SIZE (1 * 1024)
@@ -112,8 +116,6 @@
 #define ERROR_PREFIX "PG_AI Error"
 #define TRANSFER_FAIL_MSG "Transfer call failed. Try again."
 #define BIG_DATA_FAIL_MSG "Data to big, model only supports %lu words."
-
-#define COLUMN_NAME_LEN 255
 
 #define APPROX_WORDS_PER_1K_TOKENS 400
 

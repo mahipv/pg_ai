@@ -55,25 +55,25 @@ typedef const char *(*GetServiceDescription)();
 typedef const char *(*GetModelName)();
 typedef const char *(*GetModelDescription)();
 typedef void (*GetServiceHelp)(char *help_text, const size_t max_len);
+
+/* PG <-> AIService Interactions */
 typedef void (*InitServiceOptions)(void *ai_service);
-typedef int (*SetServiceData)(void *ai_service, void *data);
+typedef int (*SetAndValidateOptions)(void *service, void *function_params);
 typedef int (*PrepareForTransfer)(void *ai_service);
+typedef int (*SetServiceData)(void *ai_service, void *data);
 typedef void (*RestTransfer)(void *ai_service);
 typedef int (*CleanupServiceData)(void *ai_service);
-typedef int (*SetAndValidateOptions)(void *service, void *function_params);
 
 /* Curl <-> AIService Interactions */
 typedef void (*SetServiceBuffers)(RestRequest *rest_request,
 								  RestResponse *rest_response,
 								  ServiceData *service_data);
-typedef int (*AddServiceHeaders)(CURL *curl, struct curl_slist **headers,
-								 void *service);
-typedef int (*AddServiceData)(CURL *curl, struct curl_slist **headers,
+typedef int (*AddRestHeaders)(CURL *curl, struct curl_slist **headers,
 							  void *service);
-typedef void (*PostHeaderMaker)(char *buffer, const size_t maxlen,
-								const char *data, const size_t len);
-typedef int (*HandleResponseHeaders)(void *service, void *user_data);
-typedef int (*HandleResponseData)(void *service, void *user_data);
+typedef void (*AddRestData)(char *buffer, const size_t maxlen, const char *data,
+							const size_t len);
+
+/* PgAI internal calls */
 typedef void (*DefineCommonOptions)(void *service);
 
 /*
@@ -145,16 +145,10 @@ typedef struct AIService
 	SetServiceBuffers set_service_buffers;
 
 	/* call back to add the service/model headers to the curl POST request */
-	AddServiceHeaders add_service_headers;
+	AddRestHeaders add_rest_headers;
 
 	/* call back to add data to the curl POST request */
-	PostHeaderMaker post_header_maker;
-
-	/* model call back to handle response headers */
-	HandleResponseHeaders handle_response_headers;
-
-	/* model call back to handle response data */
-	HandleResponseData handle_response_data;
+	AddRestData add_rest_data;
 
 	/* PgAI internal calls */
 	DefineCommonOptions define_common_options;
