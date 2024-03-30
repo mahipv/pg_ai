@@ -17,14 +17,8 @@
 #define RESPONSE_JSON_CHOICE "choices"
 #define RESPONSE_JSON_KEY "text"
 
-#define GPT_HELP                                                               \
-	"\nFunctions:\n"                                                           \
-	"(i) pg_ai_insight(<column_name>,\n"                                       \
-	"                  '<prompt> eg: Get summary of the following in 1 "       \
-	"line')\n\n"                                                               \
-	"(ii) pg_ai_insight_agg(<col_name>,\n"                                     \
-	"                       '<prompt agg> eg: Choose a topic for the "         \
-	"following:')\n"
+#define GPT_HELP INSIGHT_FUNCTIONS
+
 /* -----------------gpt service >8---------- */
 
 /* -----------------8< embeddings service ---------- */

@@ -89,6 +89,9 @@ typedef void (*DefineCommonOptions)(void *service);
  */
 typedef struct AIService
 {
+	/* header to check if structure is intact */
+	int32 magic;
+
 	/* flags to represent a AI service */
 	int service_flags;
 
@@ -168,6 +171,8 @@ typedef struct AIService
 #define AI_SERVICE_DATA ((ai_service)->service_data)
 #define AI_SERVICE_OPTIONS ((ai_service)->service_data->options)
 
+AIService *palloc_AIService(void);
+AIService *valid_AIService_ptr(AIService *ai_service);
 void reset_service(AIService *ai_service);
 int create_service(AIService *ai_service);
 int initialize_service(size_t service_flags, size_t model_flags,

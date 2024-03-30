@@ -5,23 +5,30 @@
 #include <curl/curl.h>
 #include "service_option.h"
 #include "services/openai/openai_config.h"
+#include "services/gemini/gemini_config.h"
 
 /* supported service providers */
 /*--------------8<--------------*/
 #define SERVICE_OPENAI_NAME "OpenAI"
 #define SERVICE_OPENAI_DESCRIPTION "Models supported by OpenAI"
+#define SERVICE_GEMINI_NAME "Gemini"
+#define SERVICE_GEMINI_DESCRIPTION "Models supported by Gemini"
 #define SERVICE_UNSUPPORTED_MSG "Service is not supported."
 /*-------------->8--------------*/
 
 /*------------8< Services. Models, Functions ----------*/
 /* every supported service */
 #define SERVICE_OPENAI 0x00000001
+#define SERVICE_GEMINI 0x00000002
 
-/* every supported model */
+/* models supported by OpenAI */
 #define MODEL_OPENAI_GPT 0x00000001
 #define MODEL_OPENAI_EMBEDDINGS 0x00000002
 #define MODEL_OPENAI_MODERATION 0x00000004
 #define MODEL_OPENAI_IMAGE_GEN 0x00000008
+
+/* models supported by Gemini */
+#define MODEL_GEMINI_GENC 0x00000001
 
 /* functions are common across services and models */
 #define FUNCTION_GET_INSIGHT 0x00000001
@@ -129,5 +136,16 @@
 #define is_debug_level(level) (ai_service->debug_level >= level)
 
 #define BYTE char
+
+#define MAGIC_INT32 0xDEADBEEF
+
+#define INSIGHT_FUNCTIONS                                                      \
+	"\nFunctions:\n"                                                           \
+	"(i) pg_ai_insight(<column_name>,\n"                                       \
+	"                  '<prompt> eg: Get summary of the following in 1 "       \
+	"line')\n\n"                                                               \
+	"(ii) pg_ai_insight_agg(<col_name>,\n"                                     \
+	"                       '<prompt agg> eg: Choose a topic for the "         \
+	"following:')\n"
 
 #endif /* _AI_CONFIG_H_ */

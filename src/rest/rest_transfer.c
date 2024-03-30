@@ -123,7 +123,7 @@ static int debug_curl(CURL *curl, curl_infotype type, char *data, size_t size,
 static void make_curl_headers(CURL *curl, AIService *ai_service)
 {
 	struct curl_slist *headers = NULL;
-
+	/* set the URL */
 	curl_easy_setopt(curl, CURLOPT_URL,
 					 get_option_value(ai_service->service_data->options,
 									  OPTION_ENDPOINT_URL));
@@ -196,7 +196,8 @@ void rest_transfer(AIService *ai_service)
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK)
 		{
-			ereport(INFO, (errmsg("CURL ERROR: %d\n\n", res)));
+			ereport(INFO, (errmsg("CURL ERROR: %d : %s\n\n", res,
+								  curl_easy_strerror(res))));
 			ai_service->rest_response->response_code = 0x1;
 			strcpy(ai_service->rest_response->data, TRANSFER_FAIL_MSG);
 			ai_service->rest_response->data_size = strlen(TRANSFER_FAIL_MSG);

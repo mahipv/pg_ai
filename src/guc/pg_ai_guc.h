@@ -5,11 +5,11 @@
 #define PG_AI_GUC_API_KEY "pg_ai.api_key"
 #define PG_AI_GUC_API_KEY_DESCRIPTION "AI Service API key"
 
-#define PG_AI_GUC_MODEL "pg_ai.ai_service"
-#define PG_AI_GUC_MODEL_DESCRIPTION "AI Service"
+#define PG_AI_GUC_SERVICE "pg_ai.service"
+#define PG_AI_GUC_SERVICE_DESCRIPTION "AI Service"
 
-#define PG_AI_GUC_SERVICE "pg_ai.openai_model"
-#define PG_AI_GUC_SERVICE_DESCRIPTION "OpenAI model"
+#define PG_AI_GUC_MODEL "pg_ai.model"
+#define PG_AI_GUC_MODEL_DESCRIPTION "AI model"
 
 #define PG_AI_GUC_VEC_SIMILARITY_ALGO "pg_ai.similarity_algorithm"
 #define PG_AI_GUC_VEC_SIMILARITY_ALGO_DESC "Vector similarity algorithm"

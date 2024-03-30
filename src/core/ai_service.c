@@ -4,6 +4,7 @@
 
 #include "guc/pg_ai_guc.h"
 #include "ai_service_init_oai.h"
+#include "ai_service_init_gem.h"
 
 /*
  * Clear the AIService data
@@ -14,6 +15,39 @@ void reset_service(AIService *ai_service)
 		MemoryContextReset(ai_service->memory_context);
 }
 
+static int set_open_ai_models(AIService *ai_service, size_t *model_flags)
+{
+	/* if multiple model names not supported yet */
+	if (ai_service->function_flags &
+		(FUNCTION_GET_INSIGHT | FUNCTION_GET_INSIGHT_AGGREGATE))
+		*model_flags = MODEL_OPENAI_GPT;
+	else if (ai_service->function_flags &
+			 (FUNCTION_CREATE_VECTOR_STORE | FUNCTION_QUERY_VECTOR_STORE))
+		*model_flags = MODEL_OPENAI_EMBEDDINGS;
+	else if (ai_service->function_flags &
+			 (FUNCTION_MODERATION | FUNCTION_MODERATION_AGGREGATE))
+		*model_flags = MODEL_OPENAI_MODERATION;
+	else if (ai_service->function_flags &
+			 (FUNCTION_GENERATE_IMAGE | FUNCTION_GENERATE_IMAGE_AGGREGATE))
+		*model_flags = MODEL_OPENAI_IMAGE_GEN;
+	else
+		return RETURN_ERROR;
+
+	return RETURN_ZERO;
+}
+
+static int set_gemini_models(AIService *ai_service, size_t *model_flags)
+{
+	/* if multiple model names not supported yet */
+	if (ai_service->function_flags &
+		(FUNCTION_GET_INSIGHT | FUNCTION_GET_INSIGHT_AGGREGATE))
+		*model_flags = MODEL_GEMINI_GENC;
+	else
+		return RETURN_ERROR;
+
+	return RETURN_ZERO;
+}
+
 /*
  * Initialize the service and model based on the GUCs.
  */
@@ -22,30 +56,18 @@ static int init_service_model_from_guc(AIService *ai_service,
 									   size_t *model_flags)
 {
 	char *service_name;
-	char *model_name;
 
 	service_name = get_pg_ai_guc_string_variable(PG_AI_GUC_SERVICE);
-	if (!service_name)
-		*service_flags = SERVICE_OPENAI;
-
-	/* if model name is not set use the defaults */
-	model_name = get_pg_ai_guc_string_variable(PG_AI_GUC_MODEL);
-	if (!model_name)
+	if (!service_name || !strcmp(service_name, SERVICE_OPENAI_NAME))
 	{
 		*service_flags = SERVICE_OPENAI;
-		if (ai_service->function_flags &
-			(FUNCTION_GET_INSIGHT | FUNCTION_GET_INSIGHT_AGGREGATE))
-			*model_flags = MODEL_OPENAI_GPT;
-		else if (ai_service->function_flags &
-				 (FUNCTION_CREATE_VECTOR_STORE | FUNCTION_QUERY_VECTOR_STORE))
-			*model_flags = MODEL_OPENAI_EMBEDDINGS;
-		else if (ai_service->function_flags &
-				 (FUNCTION_MODERATION | FUNCTION_MODERATION_AGGREGATE))
-			*model_flags = MODEL_OPENAI_MODERATION;
-		else if (ai_service->function_flags &
-				 (FUNCTION_GENERATE_IMAGE | FUNCTION_GENERATE_IMAGE_AGGREGATE))
-			*model_flags = MODEL_OPENAI_IMAGE_GEN;
-		return RETURN_ZERO;
+		return set_open_ai_models(ai_service, model_flags);
+	}
+
+	if (!strcmp(service_name, SERVICE_GEMINI_NAME))
+	{
+		*service_flags = SERVICE_GEMINI;
+		return set_gemini_models(ai_service, model_flags);
 	}
 
 	return RETURN_ERROR;
@@ -97,6 +119,14 @@ int initialize_service(size_t service_flags, size_t model_flags,
 		strcpy(service_name, SERVICE_OPENAI_NAME);
 		strcpy(service_description, SERVICE_OPENAI_DESCRIPTION);
 		return_value = create_service_oai(model_flags, ai_service, model_name,
+										  model_description, model_url);
+	}
+
+	if (service_flags & SERVICE_GEMINI)
+	{
+		strcpy(service_name, SERVICE_GEMINI_NAME);
+		strcpy(service_description, SERVICE_GEMINI_DESCRIPTION);
+		return_value = create_service_gem(model_flags, ai_service, model_name,
 										  model_description, model_url);
 	}
 
@@ -216,7 +246,8 @@ ServiceData *create_service_data(AIService *ai_service,
 	strcpy(AI_SERVICE_DATA->service_description, service_description);
 	strcpy(AI_SERVICE_DATA->model_description, model_description);
 
-	/* get the max request and response sizes from the respective services */
+	/* get the max request and response sizes from the respective services
+	 */
 	ai_service->get_max_request_response_sizes(
 		&(AI_SERVICE_DATA->max_request_size),
 		&(AI_SERVICE_DATA->max_response_size));
@@ -231,4 +262,19 @@ ServiceData *create_service_data(AIService *ai_service,
 	AI_SERVICE_DATA->response_data[0] = '\0';
 
 	return AI_SERVICE_DATA;
+}
+
+AIService *palloc_AIService(void)
+{
+	AIService *ai_service = (AIService *)palloc0(sizeof(AIService));
+	if (ai_service)
+		ai_service->magic = MAGIC_INT32;
+	return ai_service;
+}
+
+AIService *valid_AIService_ptr(AIService *ai_service)
+{
+	if ((!ai_service) || (ai_service->magic != MAGIC_INT32))
+		return NULL;
+	return ai_service;
 }

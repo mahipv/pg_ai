@@ -11,7 +11,7 @@
 PG_FUNCTION_INFO_V1(pg_ai_moderation);
 Datum pg_ai_moderation(PG_FUNCTION_ARGS)
 {
-	AIService *ai_service = palloc0(sizeof(AIService));
+	AIService *ai_service = palloc_AIService();
 	MemoryContext func_context;
 	MemoryContext old_context;
 	text *return_text;
@@ -74,7 +74,7 @@ Datum pg_ai_moderation_agg_transfn(PG_FUNCTION_ARGS)
 	if (ai_service == NULL)
 	{
 		old_context = MemoryContextSwitchTo(agg_context);
-		ai_service = (AIService *)palloc0(sizeof(AIService));
+		ai_service = palloc_AIService();
 		ai_service->memory_context = agg_context;
 
 		ai_service->function_flags |= FUNCTION_MODERATION_AGGREGATE;
@@ -109,6 +109,10 @@ Datum pg_ai_moderation_agg_finalfn(PG_FUNCTION_ARGS)
 	ai_service = (AIService *)PG_GETARG_POINTER(0);
 	if (ai_service == NULL)
 		PG_RETURN_TEXT_P(GET_ERR_TEXT(NULL_STR));
+
+	/* error out if the final fn called on unsupported model */
+	if (!valid_AIService_ptr(ai_service))
+		PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));
 
 	/* prepare for transfer */
 	PREPARE_FOR_TRANSFER(ai_service);

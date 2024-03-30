@@ -66,7 +66,7 @@ static void process_result_set(AIService *ai_service, FuncCallContext *funcctx)
 PG_FUNCTION_INFO_V1(pg_ai_create_vector_store);
 Datum pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 {
-	AIService *ai_service = palloc0(sizeof(AIService));
+	AIService *ai_service = palloc_AIService();
 	MemoryContext func_context;
 	MemoryContext old_context;
 	text *return_text;
@@ -126,13 +126,14 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 	{
 		funcctx = SRF_FIRSTCALL_INIT();
 		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
-		ai_service = palloc0(sizeof(AIService));
+		ai_service = palloc_AIService();
 		query_string = palloc0(SERVICE_MAX_RESPONSE_SIZE);
 		ai_service->memory_context = funcctx->multi_call_memory_ctx;
 
 		/* initialize based on the service and model */
 		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
-		CREATE_SERVICE(ai_service);
+		if (create_service(ai_service))
+			PG_RETURN_NULL();
 
 		/* pass on the arguments to the service to validate */
 		SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);

@@ -35,10 +35,16 @@ make install
 CREATE EXTENSION pg_ai;
 ```
 
-Set the OpenAI [API Key](https://platform.openai.com/api-keys)
+Choose the AI service 
 ```sql
-SET pg_ai.api_key='sk-********q';
+SET pg_ai.service = 'OPenAI'(default)|'Gemini';
 ```
+
+Set the API Key [OpenAI](https://platform.openai.com/api-keys) or [Google AI Studio](https://aistudio.google.com/app/apikey)
+```sql
+SET pg_ai.api_key='qz********y';
+```
+
 
 Get the column data interpreted by LLM.
 ```sql
@@ -82,12 +88,13 @@ SELECT pg_ai_help();
 
 ## Notes
 
-Model versions in use.
+Models in use.
 
 1. OpenAI - gpt-3.5-turbo-instruct
 2. OpenAI - text-embedding-ada-002
 3. OpenAI - text-moderation-stable
 4. OpenAI - dall-e-3
+5. Google AI- gemini-pro:generateContent
 
 ## TODO
 
