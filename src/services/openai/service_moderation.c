@@ -16,7 +16,7 @@ static void define_options(AIService *ai_service)
 
 	define_new_option(option_list, OPTION_COLUMN_VALUE,
 					  OPTION_COLUMN_VALUE_DESC, OPTION_FLAG_HELP_DISPLAY,
-					  ai_service->service_data->request,
+					  ai_service->service_data->request_data,
 					  SERVICE_MAX_REQUEST_SIZE);
 
 	/* options for the non-aggregate function */
@@ -41,13 +41,6 @@ static void define_options(AIService *ai_service)
 void moderation_initialize_service(void *service)
 {
 	AIService *ai_service = (AIService *)service;
-
-	/* TODO : change func signature to return error in mem context is not set */
-	/* the options are stored in service data, allocate before defining */
-	ai_service->service_data =
-		MemoryContextAllocZero(ai_service->memory_context, sizeof(ServiceData));
-	ai_service->service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
-	ai_service->service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
 
 	/* define the options for this service - stored in service data */
 	define_options(ai_service);
@@ -178,7 +171,8 @@ int moderation_prepare_for_transfer(void *service)
 	option->value_ptr[option->current_len + prompt_len + 1] = '\0';
 
 	if (is_debug_level(PG_AI_DEBUG_3))
-		ereport(INFO, (errmsg("Req: %s\n", ai_service->service_data->request)));
+		ereport(INFO,
+				(errmsg("Req: %s\n", ai_service->service_data->request_data)));
 	init_rest_transfer((AIService *)ai_service);
 
 	return RETURN_ZERO;
@@ -201,10 +195,10 @@ void moderation_set_service_buffers(RestRequest *rest_request,
 									RestResponse *rest_response,
 									ServiceData *service_data)
 {
-	rest_request->data = service_data->request;
+	rest_request->data = service_data->request_data;
 	rest_request->max_size = service_data->max_request_size;
 
-	rest_response->data = service_data->response;
+	rest_response->data = service_data->response_data;
 	rest_response->max_size = service_data->max_response_size;
 }
 
@@ -263,19 +257,27 @@ void moderation_rest_transfer(void *service)
 
 	if (ai_service->rest_response->response_code == HTTP_OK)
 	{
-		strcpy(ai_service->service_data->response,
+		strcpy(ai_service->service_data->response_data,
 			   (char *)(ai_service->rest_response->data));
 	}
 	else if (ai_service->rest_response->data_size == 0)
 	{
-		strcpy(ai_service->service_data->response,
+		strcpy(ai_service->service_data->response_data,
 			   "Something is not ok, try again.");
 	}
 
 	/* remove prefexing \n */
-	for (int i = 0; ai_service->service_data->response[i] != '\0'; i++)
-		if (ai_service->service_data->response[i] == '\n')
-			ai_service->service_data->response[i] = ' ';
+	for (int i = 0; ai_service->service_data->response_data[i] != '\0'; i++)
+		if (ai_service->service_data->response_data[i] == '\n')
+			ai_service->service_data->response_data[i] = ' ';
 		else
 			break;
+}
+
+/* this has to be based on the context lengths of the supported services */
+void moderation_get_max_request_response_sizes(size_t *max_request_size,
+											   size_t *max_response_size)
+{
+	*max_request_size = SERVICE_MAX_REQUEST_SIZE;
+	*max_response_size = SERVICE_MAX_RESPONSE_SIZE;
 }

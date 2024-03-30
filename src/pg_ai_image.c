@@ -24,7 +24,7 @@ Datum pg_ai_generate_image(PG_FUNCTION_ARGS)
 
 	/* set the function specific flag */
 	ai_service->function_flags |= FUNCTION_GENERATE_IMAGE;
-	INITIALIZE_SERVICE(SERVICE_OPENAI, MODEL_OPENAI_IMAGE_GEN, ai_service);
+	CREATE_SERVICE(ai_service);
 
 	/* set options based on parameters and read from guc */
 	SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
@@ -74,9 +74,7 @@ Datum pg_ai_generate_image_agg_transfn(PG_FUNCTION_ARGS)
 		ai_service->memory_context = agg_context;
 
 		ai_service->function_flags |= FUNCTION_GENERATE_IMAGE_AGGREGATE;
-		/* get these settings from guc */
-		INITIALIZE_SERVICE(SERVICE_OPENAI, MODEL_OPENAI_IMAGE_GEN, ai_service);
-		ai_service->service_data->request[0] = '\0';
+		CREATE_SERVICE(ai_service);
 
 		SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
 

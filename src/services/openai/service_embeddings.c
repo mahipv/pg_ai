@@ -64,13 +64,6 @@ void embeddings_initialize_service(void *service)
 {
 	AIService *ai_service = (AIService *)service;
 
-	/* TODO : change func signature to return error in mem context is not set */
-	/* the options are stored in service data, allocate before defining */
-	ai_service->service_data =
-		MemoryContextAllocZero(ai_service->memory_context, sizeof(ServiceData));
-	ai_service->service_data->max_request_size = SERVICE_MAX_REQUEST_SIZE;
-	ai_service->service_data->max_response_size = SERVICE_MAX_RESPONSE_SIZE;
-
 	/* define the options for this service - stored in service data */
 	define_options(ai_service);
 }
@@ -273,10 +266,10 @@ void embeddings_set_service_buffers(RestRequest *rest_request,
 									RestResponse *rest_response,
 									ServiceData *service_data)
 {
-	rest_request->data = service_data->request;
+	rest_request->data = service_data->request_data;
 	rest_request->max_size = service_data->max_request_size;
 
-	rest_response->data = service_data->response;
+	rest_response->data = service_data->response_data;
 	rest_response->max_size = service_data->max_response_size;
 }
 
@@ -451,7 +444,7 @@ void embeddings_rest_transfer(void *service)
 				}
 
 				/* add the col values buffer to the request */
-				strcpy(ai_service->service_data->request, buf);
+				strcpy(ai_service->service_data->request_data, buf);
 				/* ereport(INFO,(errmsg("Buffer: %s\n\n", buf))); */
 
 				/* make a rest call to get the embeddings */
@@ -482,7 +475,7 @@ void embeddings_rest_transfer(void *service)
 					 * ereport(INFO,(errmsg("Return1: %s \n\n",
 					 * text_to_cstring(DatumGetTextPP(return_text)))));
 					 */
-					strcpy(ai_service->service_data->response,
+					strcpy(ai_service->service_data->response_data,
 						   text_to_cstring(DatumGetTextPP(datas)));
 					strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
 					remove_new_lines(data);
@@ -502,7 +495,7 @@ void embeddings_rest_transfer(void *service)
 				}
 				else if (ai_service->rest_response->data_size == 0)
 				{
-					strcpy(ai_service->service_data->response,
+					strcpy(ai_service->service_data->response_data,
 						   "Something is not ok, try again.");
 					return;
 				}
@@ -519,7 +512,7 @@ void embeddings_rest_transfer(void *service)
 	if (ai_service->function_flags & FUNCTION_QUERY_VECTOR_STORE)
 	{
 		/* get the embeddings for the NL query */
-		strcpy(ai_service->service_data->request,
+		strcpy(ai_service->service_data->request_data,
 			   get_option_value(options, OPTION_NL_QUERY));
 		rest_transfer(ai_service);
 		*((char *)(ai_service->rest_response->data) +
@@ -562,9 +555,17 @@ void embeddings_rest_transfer(void *service)
 			 * Return the SQL query so that the result set can formatted by
 			 * the caller for display.
 			 */
-			strcpy(ai_service->service_data->response, query);
+			strcpy(ai_service->service_data->response_data, query);
 			return;
 		} /* http response ok */
 	}	  /* query embeddings */
 	return;
+}
+
+/* this has to be based on the context lengths of the supported services */
+void embeddings_get_max_request_response_sizes(size_t *max_request_size,
+											   size_t *max_response_size)
+{
+	*max_request_size = SERVICE_MAX_REQUEST_SIZE;
+	*max_response_size = SERVICE_MAX_RESPONSE_SIZE;
 }

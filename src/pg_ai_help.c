@@ -14,7 +14,7 @@ static size_t get_service_header(char *display_string, const size_t max_length,
 	size_t print_length = 0;
 	print_length =
 		snprintf(display_string + running_length, max_length - running_length,
-				 "\n\nService: %s  Info: %s\nModel: %s  Info: %s\n",
+				 "\n\nService: %s  Desc: %s\nModel: %s  Desc: %s\n",
 				 ai_service->get_service_name(ai_service),
 				 ai_service->get_service_description(ai_service),
 				 ai_service->get_model_name(ai_service),

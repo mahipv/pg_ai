@@ -5,6 +5,8 @@
 
 /* calls made from Pg <-> PgAi */
 void gpt_initialize_service(void *service);
+void gpt_get_max_request_response_sizes(size_t *max_request_size,
+										size_t *max_response_size);
 int gpt_set_and_validate_options(void *service, void *function_options);
 int gpt_set_service_data(void *ai_service, void *data);
 int gpt_prepare_for_transfer(void *service);

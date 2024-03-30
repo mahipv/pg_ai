@@ -37,16 +37,21 @@ typedef struct RestResponseData
  */
 typedef struct ServiceData
 {
+	/* additional info on the service */
 	char service_description[PG_AI_DESC_LENGTH];
 	char model_description[PG_AI_DESC_LENGTH];
-	char request[SERVICE_MAX_RESPONSE_SIZE];
+
+	/* max request size is determined by the context size of the model */
+	BYTE *request_data;
 	size_t max_request_size;
-	char prompt[SERVICE_DATA_SIZE];
-	size_t max_prompt_size;
-	char response[SERVICE_MAX_RESPONSE_SIZE];
+
+	/* max response size that can be handled by PgAi*/
+	BYTE *response_data;
 	size_t max_response_size;
+
+	/* options(params+gucs) for this service */
 	ServiceOption *options;
-	void **user_data_ptr;
+
 } ServiceData;
 
 /* PG <-> AIService Interactions  - helpers */
@@ -58,6 +63,8 @@ typedef void (*GetServiceHelp)(char *help_text, const size_t max_len);
 
 /* PG <-> AIService Interactions */
 typedef void (*InitServiceOptions)(void *ai_service);
+typedef void (*GetMaxReuestResponseSizes)(size_t *max_request_size,
+										  size_t *max_response_size);
 typedef int (*SetAndValidateOptions)(void *service, void *function_params);
 typedef int (*PrepareForTransfer)(void *ai_service);
 typedef int (*SetServiceData)(void *ai_service, void *data);
@@ -121,6 +128,9 @@ typedef struct AIService
 	/* to return the help text of the model */
 	GetServiceHelp get_service_help;
 
+	/* the max request and response sizes are service dependent */
+	GetMaxReuestResponseSizes get_max_request_response_sizes;
+
 	/* define the options to be set based on the function flags */
 	InitServiceOptions init_service_options;
 
@@ -155,20 +165,27 @@ typedef struct AIService
 
 } AIService;
 
+#define AI_SERVICE_DATA ((ai_service)->service_data)
+#define AI_SERVICE_OPTIONS ((ai_service)->service_data->options)
+
 void reset_service(AIService *ai_service);
-int initialize_service(const int service_flags, const int model_flags,
+int create_service(AIService *ai_service);
+int initialize_service(size_t service_flags, size_t model_flags,
 					   AIService *ai_service);
 const char *get_service_name(const AIService *ai_service);
 const char *get_service_description(const AIService *ai_service);
 const char *get_model_name(const AIService *ai_service);
 const char *get_model_description(const AIService *ai_service);
 void define_common_options(void *ai_service);
+ServiceData *create_service_data(AIService *ai_service,
+								 const char *service_description,
+								 const char *model_description);
 
 /* Implementations of the SQL functions to call these macros in order */
-#define INITIALIZE_SERVICE(service, model, ai_service)                         \
+#define CREATE_SERVICE(ai_service)                                             \
 	do                                                                         \
 	{                                                                          \
-		if (initialize_service(service, model, ai_service))                    \
+		if (create_service(ai_service))                                        \
 			PG_RETURN_TEXT_P(GET_ERR_TEXT(UNSUPPORTED_SERVICE));               \
 	} while (0)
 

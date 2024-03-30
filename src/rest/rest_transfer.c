@@ -189,6 +189,7 @@ void rest_transfer(AIService *ai_service)
 										  ai_service->rest_request->data_size);
 		(ai_service->add_rest_data)(post_data, POST_DATA_SIZE, encoded_prompt,
 									sizeof(encoded_prompt));
+		curl_free(encoded_prompt);
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_data);
 
 		/* the actual REST data transfer */

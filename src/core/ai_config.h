@@ -128,4 +128,6 @@
 
 #define is_debug_level(level) (ai_service->debug_level >= level)
 
+#define BYTE char
+
 #endif /* _AI_CONFIG_H_ */

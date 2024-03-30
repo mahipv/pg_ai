@@ -5,6 +5,8 @@
 
 /* calls made from Pg <-> PgAi */
 void moderation_initialize_service(void *service);
+void moderation_get_max_request_response_sizes(size_t *max_request_size,
+											   size_t *max_response_size);
 int moderation_set_and_validate_options(void *service, void *function_options);
 int moderation_set_service_data(void *ai_service, void *data);
 int moderation_prepare_for_transfer(void *service);

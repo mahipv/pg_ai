@@ -9,6 +9,8 @@
 
 /* calls made from Pg <-> PgAi */
 void embeddings_initialize_service(void *service);
+void embeddings_get_max_request_response_sizes(size_t *max_request_size,
+											   size_t *max_response_size);
 int embeddings_set_and_validate_options(void *service, void *function_options);
 int embeddings_set_service_data(void *ai_service, void *data);
 int embeddings_prepare_for_transfer(void *service);

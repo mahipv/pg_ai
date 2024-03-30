@@ -83,7 +83,7 @@ Datum pg_ai_create_vector_store(PG_FUNCTION_ARGS)
 
 	/* set the function specific flag */
 	ai_service->function_flags |= FUNCTION_CREATE_VECTOR_STORE;
-	INITIALIZE_SERVICE(SERVICE_OPENAI, MODEL_OPENAI_EMBEDDINGS, ai_service);
+	CREATE_SERVICE(ai_service);
 
 	/* set options based on parameters and read from guc */
 	SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
@@ -132,7 +132,7 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 
 		/* initialize based on the service and model */
 		ai_service->function_flags |= FUNCTION_QUERY_VECTOR_STORE;
-		INITIALIZE_SERVICE(SERVICE_OPENAI, MODEL_OPENAI_EMBEDDINGS, ai_service);
+		CREATE_SERVICE(ai_service);
 
 		/* pass on the arguments to the service to validate */
 		SET_AND_VALIDATE_OPTIONS(ai_service, fcinfo);
@@ -149,7 +149,7 @@ Datum pg_ai_query_vector_store(PG_FUNCTION_ARGS)
 
 		/* get the query string and execute */
 		sprintf(query_string, "%s",
-				(char *)(ai_service->service_data->response));
+				(char *)(ai_service->service_data->response_data));
 
 		/* connect to the server and retrive the matching data */
 		spi_result = SPI_connect();
