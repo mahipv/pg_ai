@@ -10,7 +10,7 @@ CREATE EXTENSION pg_ai;
 ```
 
 ```sql
-SET pg_ai.service = 'OPenAI'(default);
+SET pg_ai.service = 'OpenAI'(default);
 ```
 
 Set the OpenAI [API Key](https://platform.openai.com/api-keys)
