@@ -30,6 +30,7 @@
 /* models supported by Gemini */
 #define MODEL_GEMINI_GENC 0x00000001
 #define MODEL_GEMINI_GENC_MOD 0x00000002
+#define MODEL_GEMINI_EMBEDDINGS 0x00000004
 
 /* functions are common across services and models */
 #define FUNCTION_GET_INSIGHT 0x00000001
@@ -154,5 +155,32 @@
 	"(i) pg_ai_moderation(<column_name>, <prompt: additional text>)  \n\n"     \
 	"(ii) pg_ai_moderation_agg(<column_name>, <promptagg: additional text>) "  \
 	"\n"
+
+#define EMBEDDING_FUNCTIONS                                                    \
+	"\nFunctions:\n"                                                           \
+	"(i) pg_ai_create_vector_store(store => '<new store name>', \n"            \
+	"                               sql_query => 'SQL query from which the "   \
+	"store is made.', \n"                                                      \
+	"                               notes => '<notes on the result set>' "     \
+	")\n\n"                                                                    \
+	"(ii) pg_ai_query_vector_store(store => '<new store name>', \n"            \
+	"                              nl_query => '<natural language prompt>', "  \
+	"\n"                                                                       \
+	"                              count => <count of records to "             \
+	"fetch>')\n"
+
+#define PG_EXTENSION_PG_VECTOR "vector"
+
+#define MIN_COUNT_RECORDS 1
+#define MAX_COUNT_RECORDS 10
+
+#define SQL_QUERY_MAX_LENGTH 256 * 1024
+
+#define EMBEDDINGS_COLUMN_NAME "embeddings"
+#define PK_SUFFIX "_id"
+
+#define EMBEDDINGS_SIMILARITY_COSINE "cosine"
+#define EMBEDDINGS_SIMILARITY_EUCLIDEAN "euclidean"
+#define EMBEDDINGS_SIMILARITY_INNER_PRODUCT "inner_product"
 
 #endif /* _AI_CONFIG_H_ */

@@ -56,7 +56,7 @@ void gen_content_initialize_service(void *service)
 void gen_content_help(char *help_text, const size_t max_len)
 {
 	if (help_text)
-		strncpy(help_text, GEN_CONTENT_HELP, max_len);
+		strncpy(help_text, GENC_MOD_CONTENT_HELP, max_len);
 }
 
 /*

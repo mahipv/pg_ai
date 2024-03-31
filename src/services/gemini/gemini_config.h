@@ -30,4 +30,18 @@
 #define GENC_MOD_CONTENT_HELP MODERATION_FUNCTIONS
 /* -----------------generate content mod >8---------- */
 
+/* -----------------8< gen eembeddings service ---------- */
+#define MODEL_GEMINI_EMBEDDINGS_NAME "embedding-001"
+#define MODEL_GEMINI_EMBEDDINGS_DESCRIPTION "Geminis' embedding model(vectors)"
+
+#define GEMINI_EMBEDDINGS_API_URL                                              \
+	"https://generativelanguage.googleapis.com/v1beta/models/"                 \
+	"embedding-001:batchEmbedContents?key="
+
+#define GEMINI_EMBEDDINGS_HELP EMBEDDING_FUNCTIONS
+
+/*  seems const - TODO */
+#define GEMINI_EMBEDDINGS_LIST_SIZE 768
+/* ----------------- gen eembeddings service >8---------- */
+
 #endif /* GEMINI_CONFIG_H */

@@ -1,4 +1,4 @@
-#include "service_embeddings.h"
+#include "service_gen_embeddings.h"
 
 #include "executor/spi.h"
 
@@ -60,7 +60,7 @@ static void define_options(AIService *ai_service)
 /*
  * Initialize the service options for the embeddings service.
  */
-void embeddings_initialize_service(void *service)
+void gen_embeddings_initialize_service(void *service)
 {
 	AIService *ai_service = (AIService *)service;
 
@@ -71,22 +71,25 @@ void embeddings_initialize_service(void *service)
 /*
  * Return the help text to be displayed for the embeddings service.
  */
-void embeddings_help(char *help_text, const size_t max_len)
+void gen_embeddings_help(char *help_text, const size_t max_len)
 {
 	if (help_text)
-		strncpy(help_text, EMBEDDINGS_HELP, max_len);
+		strncpy(help_text, GEMINI_EMBEDDINGS_HELP, max_len);
 }
 
 /*
  * set the options for the embeddings service and validate the options.
  */
-int embeddings_set_and_validate_options(void *service, void *function_options)
+int gen_embeddings_set_and_validate_options(void *service,
+											void *function_options)
 {
 	PG_FUNCTION_ARGS = (FunctionCallInfo)function_options;
 	AIService *ai_service = (AIService *)service;
 	ServiceOption *options = ai_service->service_data->options;
 	char count_str[10];
 	int count;
+	char temp_url[SERVICE_DATA_SIZE];
+	char *url;
 
 	if (!PG_ARGISNULL(0))
 		set_option_value(options, OPTION_STORE_NAME,
@@ -140,13 +143,23 @@ int embeddings_set_and_validate_options(void *service, void *function_options)
 			return RETURN_ERROR;
 		}
 	}
+
+	/* manipulate the url */
+	url = get_option_value(ai_service->service_data->options,
+						   OPTION_ENDPOINT_URL);
+	strcpy(temp_url, url);
+	strcat(temp_url, get_option_value(ai_service->service_data->options,
+									  OPTION_SERVICE_API_KEY));
+	set_option_value(ai_service->service_data->options, OPTION_ENDPOINT_URL,
+					 temp_url, false /* concat */);
+
 	return RETURN_ZERO;
 }
 
 /*
  * Function to initialize the service data for the embeddings service.
  */
-int embeddings_set_service_data(void *service, void *data)
+int gen_embeddings_set_service_data(void *service, void *data)
 {
 	/* embeddings use pg_vector extension */
 	if (!is_extension_installed(PG_EXTENSION_PG_VECTOR))
@@ -164,11 +177,12 @@ int embeddings_set_service_data(void *service, void *data)
  * called before the transfer is initiated. Create the table to store the
  * embeddings if the function is to create a vector store.
  */
-int embeddings_prepare_for_transfer(void *service)
+int gen_embeddings_prepare_for_transfer(void *service)
 {
 	AIService *ai_service = (AIService *)service;
 
-	/* TODO check if this has/can to be moved to embeddings_set_data() above */
+	/* TODO check if this has/can to be moved to gen_embeddings_set_data() above
+	 */
 	/* create the data store table and add PK and the embeddings columns */
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
 	{
@@ -197,7 +211,7 @@ int embeddings_prepare_for_transfer(void *service)
 				 "ALTER TABLE %s ADD COLUMN %s vector(%d) ",
 				 get_option_value(ai_service->service_data->options,
 								  OPTION_STORE_NAME),
-				 EMBEDDINGS_COLUMN_NAME, EMBEDDINGS_LIST_SIZE);
+				 EMBEDDINGS_COLUMN_NAME, GEMINI_EMBEDDINGS_LIST_SIZE);
 		execute_query_spi(query, false /* read only */);
 	}
 	init_rest_transfer((AIService *)ai_service);
@@ -208,7 +222,7 @@ int embeddings_prepare_for_transfer(void *service)
  * Function to cleanup the transfer structures before initiating a new
  * transfer request.
  */
-int embeddings_cleanup_service_data(void *ai_service)
+int gen_embeddings_cleanup_service_data(void *ai_service)
 {
 	/* cleanup_rest_transfer((AIService *)ai_service); */
 	pfree(((AIService *)ai_service)->service_data);
@@ -218,9 +232,9 @@ int embeddings_cleanup_service_data(void *ai_service)
 /*
  * Function to initialize the service buffers for data tranasfer.
  */
-void embeddings_set_service_buffers(RestRequest *rest_request,
-									RestResponse *rest_response,
-									ServiceData *service_data)
+void gen_embeddings_set_service_buffers(RestRequest *rest_request,
+										RestResponse *rest_response,
+										ServiceData *service_data)
 {
 	rest_request->data = service_data->request_data;
 	rest_request->max_size = service_data->max_request_size;
@@ -234,19 +248,13 @@ void embeddings_set_service_buffers(RestRequest *rest_request,
  * call back from REST transfer layer. The curl headers are
  * constructed from this list.
  */
-int embeddings_add_rest_headers(CURL *curl, struct curl_slist **headers,
-								void *service)
+int gen_embeddings_add_rest_headers(CURL *curl, struct curl_slist **headers,
+									void *service)
 {
-	AIService *ai_service = (AIService *)service;
 	struct curl_slist *curl_headers = *headers;
-	char key_header[128];
 
 	curl_headers =
 		curl_slist_append(curl_headers, "Content-Type: application/json");
-	snprintf(key_header, sizeof(key_header), "Authorization: Bearer %s",
-			 get_option_value(ai_service->service_data->options,
-							  OPTION_SERVICE_API_KEY));
-	curl_headers = curl_slist_append(curl_headers, key_header);
 	*headers = curl_headers;
 
 	return RETURN_ZERO;
@@ -255,20 +263,26 @@ int embeddings_add_rest_headers(CURL *curl, struct curl_slist **headers,
 /*
  * Callback to make the POST header for the REST transfer.
  */
-#define EMBEDDINGS_PREFIX "{\"input\":"
-#define EMBEDDINGS_MODEL ",\"model\":\"" MODEL_OPENAI_EMBEDDINGS_NAME "\"}"
-void embeddings_add_rest_data(char *buffer, const size_t maxlen,
-							  const char *data, const size_t len)
+#define JSON_EMBED_FORMAT_STR                                                  \
+	"{\n"                                                                      \
+	"  \"requests\": [{\n"                                                     \
+	"    \"model\": \"models/%s\",\n"                                          \
+	"    \"content\": {\n"                                                     \
+	"      \"parts\": [{\n"                                                    \
+	"        \"text\": \"%s\"\n"                                               \
+	"      }]\n"                                                               \
+	"    }\n"                                                                  \
+	"  }]\n"                                                                   \
+	"}"
+
+void gen_embeddings_add_rest_data(char *buffer, const size_t maxlen,
+								  const char *data, const size_t len)
 {
-	strcpy(buffer, EMBEDDINGS_PREFIX);
-	strcat(buffer, "\"");
-	strcat(buffer, data);
-	strcat(buffer, "\"");
-	strcat(buffer, EMBEDDINGS_MODEL);
-	/* ereport(INFO,(errmsg("POST: %s\n\n", buffer))); */
+	sprintf(buffer, JSON_EMBED_FORMAT_STR, MODEL_GEMINI_EMBEDDINGS_NAME, data);
+	/* ereport(INFO, (errmsg("POST: %s\n\n", buffer))); */
 }
 
-int embeddings_handle_response_headers(void *service, void *user_data)
+int gen_embeddings_handle_response_headers(void *service, void *user_data)
 {
 	return RETURN_ZERO;
 }
@@ -322,9 +336,11 @@ static void make_select_query_with_similarity(AIService *ai_service, char *data,
  * the json returned by the service.
  */
 /* TODO break the function into mangeable chunks */
-void embeddings_rest_transfer(void *service)
+#define RESPONSE_JSON_EMBEDDINGS "embeddings"
+#define RESPONSE_JSON_VALUES "values"
+void gen_embeddings_rest_transfer(void *service)
 {
-	Datum datas;
+	Datum embeddings;
 	Datum first_choice;
 	Datum return_text;
 	Datum val;
@@ -416,23 +432,22 @@ void embeddings_rest_transfer(void *service)
 				/* extract the embeddings from the response json */
 				if (ai_service->rest_response->response_code == HTTP_OK)
 				{
-					datas = DirectFunctionCall2(
+					embeddings = DirectFunctionCall2(
 						json_object_field_text,
 						CStringGetTextDatum(
 							(char *)(ai_service->rest_response->data)),
-						PointerGetDatum(cstring_to_text("data")));
-					first_choice = DirectFunctionCall2(
-						json_array_element_text, datas, PointerGetDatum(0));
+						PointerGetDatum(
+							cstring_to_text(RESPONSE_JSON_EMBEDDINGS)));
+					first_choice =
+						DirectFunctionCall2(json_array_element_text, embeddings,
+											PointerGetDatum(0));
+
 					return_text = DirectFunctionCall2(
 						json_object_field_text, first_choice,
-						PointerGetDatum(cstring_to_text("embedding")));
+						PointerGetDatum(cstring_to_text(RESPONSE_JSON_VALUES)));
 
-					/*
-					 * ereport(INFO,(errmsg("Return1: %s \n\n",
-					 * text_to_cstring(DatumGetTextPP(return_text)))));
-					 */
 					strcpy(ai_service->service_data->response_data,
-						   text_to_cstring(DatumGetTextPP(datas)));
+						   text_to_cstring(DatumGetTextPP(embeddings)));
 					strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
 					remove_new_lines(data);
 
@@ -459,7 +474,7 @@ void embeddings_rest_transfer(void *service)
 			} /* end of while cursor */
 		}	  /* rows returned */
 		SPI_finish();
-		/* return the store name */
+		/* return the store name if no error */
 		if (ai_service->rest_response->response_code == HTTP_OK)
 			strcpy((char *)(ai_service->rest_response->data),
 				   get_option_value(options, OPTION_STORE_NAME));
@@ -483,15 +498,16 @@ void embeddings_rest_transfer(void *service)
 		/* extract the embeddings from the response */
 		if (ai_service->rest_response->response_code == HTTP_OK)
 		{
-			datas = DirectFunctionCall2(
+			embeddings = DirectFunctionCall2(
 				json_object_field_text,
 				CStringGetTextDatum((char *)(ai_service->rest_response->data)),
-				PointerGetDatum(cstring_to_text("data")));
-			first_choice = DirectFunctionCall2(json_array_element_text, datas,
-											   PointerGetDatum(0));
+				PointerGetDatum(cstring_to_text(RESPONSE_JSON_EMBEDDINGS)));
+
+			first_choice = DirectFunctionCall2(json_array_element_text,
+											   embeddings, PointerGetDatum(0));
 			return_text = DirectFunctionCall2(
 				json_object_field_text, first_choice,
-				PointerGetDatum(cstring_to_text("embedding")));
+				PointerGetDatum(cstring_to_text(RESPONSE_JSON_VALUES)));
 
 			strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
 			remove_new_lines(data);
@@ -520,8 +536,8 @@ void embeddings_rest_transfer(void *service)
 }
 
 /* this has to be based on the context lengths of the supported services */
-void embeddings_get_max_request_response_sizes(size_t *max_request_size,
-											   size_t *max_response_size)
+void gen_embeddings_get_max_request_response_sizes(size_t *max_request_size,
+												   size_t *max_response_size)
 {
 	*max_request_size = SERVICE_MAX_REQUEST_SIZE;
 	*max_response_size = SERVICE_MAX_RESPONSE_SIZE;

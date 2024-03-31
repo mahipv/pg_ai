@@ -9,6 +9,10 @@ pg_ai extension can be used to generate pictures from the column text.
 CREATE EXTENSION pg_ai;
 ```
 
+```sql
+SET pg_ai.service = 'OPenAI'(default);
+```
+
 Set the OpenAI [API Key](https://platform.openai.com/api-keys)
 ```sql
 SET pg_ai.api_key='sk-********q';

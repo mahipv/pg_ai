@@ -45,6 +45,7 @@ Set the API Key [OpenAI](https://platform.openai.com/api-keys) or [Google AI Stu
 SET pg_ai.api_key='qz********y';
 ```
 
+#### Insights
 
 Get the column data interpreted by LLM.
 ```sql
@@ -55,6 +56,8 @@ Aggregate version of the above function.
 ```sql
 SELECT pg_ai_insight_agg(col1, 'Suggest a topic for these values') AS topic FROM my_table WHERE id > 5;
 ```
+
+#### Vectors
 
 Create vector store for a dataset.
 ```sql
@@ -74,10 +77,19 @@ SELECT pg_ai_query_vector_store(store => 'movies_vec_store_90s',
 SET pg_ai.similarity_algorithm='cosine'(default)|'euclidean'|'inner_product';
 ```
 
-### More functions and supported models
+#### Moderations
 
-[Moderations](README_moderations.md)
+Get the moderations for the column data.
+```sql
+SELECT col1, pg_ai_moderation(col1, NULL) FROM messages_table WHERE id=1;
+```
 
+Aggregate version of the above function.
+```sql
+SELECT pg_ai_moderation_agg(col1, NULL) FROM messages_table WHERE id<10;
+```
+
+#### More functions and supported models
 [Text to Image](README_image_gen.md)
 
 

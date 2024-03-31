@@ -26,32 +26,11 @@
 #define MODEL_OPENAI_EMBEDDINGS_DESCRIPTION "OpenAI's embeddings model(vectors)"
 
 #define EMBEDDINGS_API_URL "https://api.openai.com/v1/embeddings"
-#define EMBEDDINGS_DESCRIPTION "OpenAI's embeddings model(vectors)"
 
-#define EMBEDDINGS_HELP                                                        \
-	"\nFunctions:\n"                                                           \
-	"(i) pg_ai_create_vector_store(store => '<new store name>', \n"            \
-	"                               sql_query => 'SQL query from which the "   \
-	"store is made.', \n"                                                      \
-	"                               notes => '<notes on the result set>' "     \
-	")\n\n"                                                                    \
-	"(ii) pg_ai_query_vector_store(store => '<new store name>', \n"            \
-	"                              nl_query => '<natural language prompt>', "  \
-	"\n"                                                                       \
-	"                              count => <count of records to "             \
-	"fetch>')\n"
+#define EMBEDDINGS_HELP EMBEDDING_FUNCTIONS
 
-#define SQL_QUERY_MAX_LENGTH 256 * 1024
 /*  seems const - TODO */
 #define EMBEDDINGS_LIST_SIZE 1536
-
-#define EMBEDDINGS_COLUMN_NAME "embeddings"
-#define PK_SUFFIX "_id"
-
-#define PG_EXTENSION_PG_VECTOR "vector"
-
-#define MIN_COUNT_RECORDS 1
-#define MAX_COUNT_RECORDS 10
 /* ----------------- embeddings service >8---------- */
 
 /*--------------8< Image Gen service --------------*/

@@ -5,6 +5,8 @@
 #include <utils/builtins.h>
 #include "executor/spi.h"
 
+#include "ai_service.h"
+
 /* input/ooput text manipulation helpers */
 int escape_encode(const char *src, const size_t src_len, char *dst,
 				  const size_t max_dst_len);
@@ -28,4 +30,6 @@ SPITupleTable *remove_columns_from_spitb(SPITupleTable *tuptable,
 										 TupleDesc *result_tupdesc,
 										 char *column_names[], int num_columns);
 
+int execute_query_spi(const char *query, bool read_only);
+void set_similarity_algorithm(ServiceOption *options);
 #endif /* _UTILS_PG_AI_H_ */

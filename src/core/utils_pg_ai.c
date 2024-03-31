@@ -2,7 +2,7 @@
 
 #include <funcapi.h>
 
-#include "ai_config.h"
+#include "guc/pg_ai_guc.h"
 
 /*
  * Function to escape the special characters that are to be sent as data
@@ -263,4 +263,48 @@ void remove_new_lines(char *stream)
 
 	/* Add the null terminator to mark the end of the modified stream */
 	*q = '\0';
+}
+
+/*
+ * wrapper to execute the query using SPI
+ */
+int execute_query_spi(const char *query, bool read_only)
+{
+	int ret;
+	int row_limit = 0;
+
+	/* ereport(INFO,(errmsg("Query: %s\n", query))); */
+	SPI_connect();
+	ret = SPI_execute(query, read_only, row_limit);
+	SPI_finish();
+	return ret;
+}
+
+/*
+ * Set the similarity algorithm to be used for the embeddings service.
+ * The algorithm is set by the GUC pg_ai.vec_similarity_algo and defaults
+ * to cosine similarity.
+ */
+void set_similarity_algorithm(ServiceOption *options)
+{
+	char *similarity_algo =
+		get_pg_ai_guc_string_variable(PG_AI_GUC_VEC_SIMILARITY_ALGO);
+
+	/* default to cosine */
+	if (!similarity_algo)
+		similarity_algo = EMBEDDINGS_SIMILARITY_COSINE;
+	else
+	{
+		/* check for non-exact strings and set values accordingly */
+		if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_EUCLIDEAN))
+			similarity_algo = EMBEDDINGS_SIMILARITY_EUCLIDEAN;
+		else if (!strcasecmp(similarity_algo,
+							 EMBEDDINGS_SIMILARITY_INNER_PRODUCT))
+			similarity_algo = EMBEDDINGS_SIMILARITY_INNER_PRODUCT;
+		else
+			similarity_algo = EMBEDDINGS_SIMILARITY_COSINE;
+	}
+
+	set_option_value(options, OPTION_SIMILARITY_ALGORITHM, similarity_algo,
+					 false /* concat */);
 }

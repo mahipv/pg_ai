@@ -45,6 +45,9 @@ static int set_gemini_models(AIService *ai_service, size_t *model_flags)
 	else if (ai_service->function_flags &
 			 (FUNCTION_MODERATION | FUNCTION_MODERATION_AGGREGATE))
 		*model_flags = MODEL_GEMINI_GENC_MOD;
+	else if (ai_service->function_flags &
+			 (FUNCTION_CREATE_VECTOR_STORE | FUNCTION_QUERY_VECTOR_STORE))
+		*model_flags = MODEL_GEMINI_EMBEDDINGS;
 	else
 		return RETURN_ERROR;
 
