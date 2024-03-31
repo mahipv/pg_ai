@@ -29,6 +29,7 @@
 
 /* models supported by Gemini */
 #define MODEL_GEMINI_GENC 0x00000001
+#define MODEL_GEMINI_GENC_MOD 0x00000002
 
 /* functions are common across services and models */
 #define FUNCTION_GET_INSIGHT 0x00000001
@@ -147,5 +148,11 @@
 	"(ii) pg_ai_insight_agg(<col_name>,\n"                                     \
 	"                       '<prompt agg> eg: Choose a topic for the "         \
 	"following:')\n"
+
+#define MODERATION_FUNCTIONS                                                   \
+	"\nFunctions:\n"                                                           \
+	"(i) pg_ai_moderation(<column_name>, <prompt: additional text>)  \n\n"     \
+	"(ii) pg_ai_moderation_agg(<column_name>, <promptagg: additional text>) "  \
+	"\n"
 
 #endif /* _AI_CONFIG_H_ */

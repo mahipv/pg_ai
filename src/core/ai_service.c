@@ -42,6 +42,9 @@ static int set_gemini_models(AIService *ai_service, size_t *model_flags)
 	if (ai_service->function_flags &
 		(FUNCTION_GET_INSIGHT | FUNCTION_GET_INSIGHT_AGGREGATE))
 		*model_flags = MODEL_GEMINI_GENC;
+	else if (ai_service->function_flags &
+			 (FUNCTION_MODERATION | FUNCTION_MODERATION_AGGREGATE))
+		*model_flags = MODEL_GEMINI_GENC_MOD;
 	else
 		return RETURN_ERROR;
 
