@@ -64,13 +64,13 @@ static int init_service_model_from_guc(AIService *ai_service,
 	char *service_name;
 
 	service_name = get_pg_ai_guc_string_variable(PG_AI_GUC_SERVICE);
-	if (!service_name || !strcmp(service_name, SERVICE_OPENAI_NAME))
+	if (!service_name || !strcasecmp(service_name, SERVICE_OPENAI_NAME))
 	{
 		*service_flags = SERVICE_OPENAI;
 		return set_open_ai_models(ai_service, model_flags);
 	}
 
-	if (!strcmp(service_name, SERVICE_GEMINI_NAME))
+	if (!strcasecmp(service_name, SERVICE_GEMINI_NAME))
 	{
 		*service_flags = SERVICE_GEMINI;
 		return set_gemini_models(ai_service, model_flags);

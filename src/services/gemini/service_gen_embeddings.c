@@ -332,155 +332,178 @@ static void make_select_query_with_similarity(AIService *ai_service, char *data,
 }
 
 /*
- * Function to initiate the curl transfer and extract the response from
- * the json returned by the service.
+ * Function to make a string out of the column name value pairs to get the
+ * corresponding embeddings.
  */
-/* TODO break the function into mangeable chunks */
+static void add_cols_name_value_to_prompt(char *buf, const size_t max_buf_size,
+										  TupleDesc tupdesc, HeapTuple tuple,
+										  char *pk_col, int64 *pk_col_value)
+{
+	bool isnull;
+	/* concatinate all column vals to get an embedding */
+	for (int i = 1; i <= tupdesc->natts; i++)
+	{
+		/* skip sending the embedded column itself */
+		if (strcmp(SPI_fname(tupdesc, i), EMBEDDINGS_COLUMN_NAME) == 0)
+			continue;
+
+		/* added pk column is a row identifier, skip it */
+		if (strcmp(SPI_fname(tupdesc, i), pk_col) == 0)
+		{
+			*pk_col_value =
+				DatumGetInt64(SPI_getbinval(tuple, tupdesc, i, &isnull));
+			continue;
+		}
+
+		/* add the column name and value to the buffer */
+		snprintf(buf + strlen(buf), max_buf_size - strlen(buf), " %s:\"%s\"",
+				 SPI_fname(tupdesc, i), SPI_getvalue(tuple, tupdesc, i));
+	}
+}
+
+/*
+ * Extract the vector from the json response returned by the service.
+ */
 #define RESPONSE_JSON_EMBEDDINGS "embeddings"
 #define RESPONSE_JSON_VALUES "values"
-void gen_embeddings_rest_transfer(void *service)
+static Datum extract_vector_from_json(char *json)
 {
 	Datum embeddings;
 	Datum first_choice;
 	Datum return_text;
-	Datum val;
-	bool isnull;
+
+	embeddings = DirectFunctionCall2(
+		json_object_field_text, CStringGetTextDatum(json),
+		PointerGetDatum(cstring_to_text(RESPONSE_JSON_EMBEDDINGS)));
+	first_choice = DirectFunctionCall2(json_array_element_text, embeddings,
+									   PointerGetDatum(0));
+	return_text = DirectFunctionCall2(
+		json_object_field_text, first_choice,
+		PointerGetDatum(cstring_to_text(RESPONSE_JSON_VALUES)));
+
+	return return_text;
+}
+
+/*
+ * Function to create the embeddings for the data set. The embeddings are
+ * stored in the vector store table.
+ */
+static void create_embeddings(AIService *ai_service, char *query)
+{
 	int ret;
 	int count = 0;
+	Datum return_text;
 	int64 pk_col_value = -1;
+	char pk_col[COLUMN_NAME_LEN];
+	char data[SQL_QUERY_MAX_LENGTH];
+	char prompt_str[MAX_BYTE_VALUE];
+	ServiceOption *options = ai_service->service_data->options;
+
+	/* the start of the prompt is the notes passed to pg_ai_function */
+	snprintf(prompt_str, MAX_BYTE_VALUE, "%s",
+			 get_option_value(options, OPTION_NL_NOTES));
+
+	/* PK col is for internal reference and not be used for vector */
+	make_pk_col_name(pk_col, COLUMN_NAME_LEN,
+					 get_option_value(options, OPTION_STORE_NAME));
+
+	/* execute the query to get the data set */
+	SPI_connect();
+	ret = SPI_exec(query, count);
+	if (ret > 0 && SPI_tuptable != NULL)
+	{
+		size_t max_buf_size = ai_service->service_data->max_request_size;
+		char *buf =
+			MemoryContextAlloc(ai_service->memory_context, max_buf_size);
+		SPITupleTable *tuptable = SPI_tuptable;
+		TupleDesc tupdesc = tuptable->tupdesc;
+
+		/* for each row: get embeddings from LLM and update embeddings col */
+		for (uint64 j = 0; j < tuptable->numvals; j++)
+		{
+			/* for each row get the column names:value pairs */
+			HeapTuple tuple = tuptable->vals[j];
+
+			/* start the prompt with the NL notes passed to function */
+			snprintf(buf, MAX_BYTE_VALUE, "%s ", prompt_str);
+
+			/* concat column name:value pairs to the prompt */
+			add_cols_name_value_to_prompt(buf, max_buf_size, tupdesc, tuple,
+										  pk_col, &pk_col_value);
+
+			/* add the col values buffer to the request */
+			strcpy(ai_service->service_data->request_data, buf);
+
+			/* make a rest call to get the embeddings */
+			rest_transfer(ai_service);
+			*((char *)(ai_service->rest_response->data) +
+			  ai_service->rest_response->data_size) = '\0';
+
+			/* extract the embeddings from the response json */
+			if (ai_service->rest_response->response_code == HTTP_OK)
+			{
+				return_text = extract_vector_from_json(
+					(char *)(ai_service->rest_response->data));
+				strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
+				remove_new_lines(data);
+
+				/* update the row in the vector store with the embeddings */
+				sprintf(query, "UPDATE %s SET %s = '%s' WHERE %s%s = %ld",
+						get_option_value(options, OPTION_STORE_NAME),
+						EMBEDDINGS_COLUMN_NAME, data,
+						get_option_value(options, OPTION_STORE_NAME), PK_SUFFIX,
+						pk_col_value);
+				execute_query_spi(query, false /* read only */);
+
+				/* make way for the next call */
+				ai_service->rest_response->data_size = 0;
+				*((char *)(ai_service->rest_response->data) +
+				  ai_service->rest_response->data_size) = '\0';
+			}
+		} /* end of while cursor */
+		if (buf)
+			pfree(buf);
+	} /* rows returned */
+	SPI_finish();
+
+	/* return the store name if no error */
+	if (ai_service->rest_response->response_code == HTTP_OK)
+		strcpy((char *)(ai_service->rest_response->data),
+			   get_option_value(options, OPTION_STORE_NAME));
+	else if (ai_service->rest_response->data_size == 0)
+	{
+		/* if no error text from LLM, return stock error string and length */
+		strcpy(ai_service->service_data->response_data,
+			   GET_ERR_STR(TRANSFER_FAIL));
+		ai_service->rest_response->data_size =
+			strlen(GET_ERR_STR(TRANSFER_FAIL));
+	}
+}
+
+/*
+ * Function to initiate the curl transfer and extract the response from
+ * the json returned by the service.
+ */
+void gen_embeddings_rest_transfer(void *service)
+{
+	Datum return_text;
 	AIService *ai_service = (AIService *)(service);
 	ServiceOption *options = ai_service->service_data->options;
-	char pk_col[COLUMN_NAME_LEN];
 	char data[SQL_QUERY_MAX_LENGTH];
 	char query[SQL_QUERY_MAX_LENGTH];
 
 	ai_service = (AIService *)(service);
+
+	/* update the vector store(table) with embeddings */
 	if (ai_service->function_flags & FUNCTION_CREATE_VECTOR_STORE)
 	{
 		sprintf(query, "SELECT * FROM %s",
 				get_option_value(ai_service->service_data->options,
 								 OPTION_STORE_NAME));
+		return create_embeddings(ai_service, query);
+	}
 
-		/*
-		 * ereport(INFO, (errmsg("\nProcessing query \"%s\"\n",
-		 * get_option_value(ai_service->service_data->options,
-		 * OPTION_SQL_QUERY))));
-		 */
-		SPI_connect();
-		ret = SPI_exec(query, count);
-
-		/*
-		 * for each fetched row, get the embeddings from the service and
-		 * update * the row in the materialized table to set the embeddings.
-		 */
-		if (ret > 0 && SPI_tuptable != NULL)
-		{
-			SPITupleTable *tuptable = SPI_tuptable;
-			TupleDesc tupdesc = tuptable->tupdesc;
-			char buf[8192];
-			uint64 j;
-			char prompt_str[64];
-
-			snprintf(prompt_str, 64, "%s",
-					 get_option_value(options, OPTION_NL_NOTES));
-			make_pk_col_name(pk_col, COLUMN_NAME_LEN,
-							 get_option_value(options, OPTION_STORE_NAME));
-			snprintf(buf, 8192, "%s ", prompt_str);
-
-			/* loop through the result set */
-			for (j = 0; j < tuptable->numvals; j++)
-			{
-				HeapTuple tuple = tuptable->vals[j];
-				int i;
-
-				/* concatinate all column vals to get an embedding */
-				for (i = 1, buf[0] = 0; i <= tupdesc->natts; i++)
-				{
-					/* skip sending the embedded column itself */
-					if (strcmp(SPI_fname(tupdesc, i), EMBEDDINGS_COLUMN_NAME) ==
-						0)
-						continue;
-
-					/* newly added pk column is a row identifier, skip it */
-					if (strcmp(SPI_fname(tupdesc, i), pk_col) == 0)
-					{
-						val = SPI_getbinval(tuple, tupdesc, i, &isnull);
-						pk_col_value = DatumGetInt64(val);
-						continue;
-					}
-
-					/* add the column name and value to the buffer */
-					snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-							 " %s:\"%s\"", SPI_fname(tupdesc, i),
-							 SPI_getvalue(tuple, tupdesc, i));
-				}
-
-				/* add the col values buffer to the request */
-				strcpy(ai_service->service_data->request_data, buf);
-				/* ereport(INFO,(errmsg("Buffer: %s\n\n", buf))); */
-
-				/* make a rest call to get the embeddings */
-				rest_transfer(ai_service);
-				*((char *)(ai_service->rest_response->data) +
-				  ai_service->rest_response->data_size) = '\0';
-
-				/*
-				 * ereport(INFO,(errmsg("Return: %s -%ld\n\n",
-				 * (char*)(ai_service->rest_response->data), pk_col_value)));
-				 */
-
-				/* extract the embeddings from the response json */
-				if (ai_service->rest_response->response_code == HTTP_OK)
-				{
-					embeddings = DirectFunctionCall2(
-						json_object_field_text,
-						CStringGetTextDatum(
-							(char *)(ai_service->rest_response->data)),
-						PointerGetDatum(
-							cstring_to_text(RESPONSE_JSON_EMBEDDINGS)));
-					first_choice =
-						DirectFunctionCall2(json_array_element_text, embeddings,
-											PointerGetDatum(0));
-
-					return_text = DirectFunctionCall2(
-						json_object_field_text, first_choice,
-						PointerGetDatum(cstring_to_text(RESPONSE_JSON_VALUES)));
-
-					strcpy(ai_service->service_data->response_data,
-						   text_to_cstring(DatumGetTextPP(embeddings)));
-					strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
-					remove_new_lines(data);
-
-					/* update the row with the embeddings */
-					sprintf(query, "UPDATE %s SET %s = '%s' WHERE %s%s = %ld",
-							get_option_value(options, OPTION_STORE_NAME),
-							EMBEDDINGS_COLUMN_NAME, data,
-							get_option_value(options, OPTION_STORE_NAME),
-							PK_SUFFIX, pk_col_value);
-					execute_query_spi(query, false /* read only */);
-
-					/* make way for the next call */
-					ai_service->rest_response->data_size = 0;
-					*((char *)(ai_service->rest_response->data) +
-					  ai_service->rest_response->data_size) = '\0';
-				}
-				else if (ai_service->rest_response->data_size == 0)
-				{
-					strcpy(ai_service->service_data->response_data,
-						   "Something is not ok, try again.");
-					return;
-				}
-
-			} /* end of while cursor */
-		}	  /* rows returned */
-		SPI_finish();
-		/* return the store name if no error */
-		if (ai_service->rest_response->response_code == HTTP_OK)
-			strcpy((char *)(ai_service->rest_response->data),
-				   get_option_value(options, OPTION_STORE_NAME));
-	} /* create embeddings */
-
-	/* query embeddings */
+	/* return a SQL query for the SRF */
 	if (ai_service->function_flags & FUNCTION_QUERY_VECTOR_STORE)
 	{
 		/* get the embeddings for the NL query */
@@ -490,42 +513,30 @@ void gen_embeddings_rest_transfer(void *service)
 		*((char *)(ai_service->rest_response->data) +
 		  ai_service->rest_response->data_size) = '\0';
 
-		/*
-		 * ereport(INFO,(errmsg("Return: %s\n\n",
-		 * ai_service->rest_response->data)));
-		 */
-
-		/* extract the embeddings from the response */
+		/* make the SQL query */
 		if (ai_service->rest_response->response_code == HTTP_OK)
 		{
-			embeddings = DirectFunctionCall2(
-				json_object_field_text,
-				CStringGetTextDatum((char *)(ai_service->rest_response->data)),
-				PointerGetDatum(cstring_to_text(RESPONSE_JSON_EMBEDDINGS)));
-
-			first_choice = DirectFunctionCall2(json_array_element_text,
-											   embeddings, PointerGetDatum(0));
-			return_text = DirectFunctionCall2(
-				json_object_field_text, first_choice,
-				PointerGetDatum(cstring_to_text(RESPONSE_JSON_VALUES)));
-
+			/* extract the embeddings from response */
+			return_text = extract_vector_from_json(
+				(char *)(ai_service->rest_response->data));
 			strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
 			remove_new_lines(data);
 
 			/* query for the materialized store for ANN */
 			make_select_query_with_similarity(ai_service, data, query);
 
+			/* add the limit value to the query */
 			if (get_option_value(options, OPTION_RECORD_COUNT))
 			{
 				strcat(query, "LIMIT ");
 				strcat(query, get_option_value(options, OPTION_RECORD_COUNT));
 			}
 
-			if (is_debug_level(PG_AI_DEBUG_3))
+			if (DEBUG_LEVEL(PG_AI_DEBUG_3))
 				ereport(INFO, (errmsg("QUERY: %s \n\n", query)));
 
 			/*
-			 * Return the SQL query so that the result set can formatted by
+			 * Return SQL query - the result set can formatted by
 			 * the caller for display.
 			 */
 			strcpy(ai_service->service_data->response_data, query);

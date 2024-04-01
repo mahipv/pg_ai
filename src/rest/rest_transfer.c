@@ -159,7 +159,7 @@ void rest_transfer(AIService *ai_service)
 	if (vaildate_data_size(ai_service->rest_request->data, &max_word_count))
 	{
 		ai_service->rest_response->response_code = 0x2;
-		sprintf(error_msg, BIG_DATA_FAIL_MSG, max_word_count);
+		sprintf(error_msg, GET_ERR_STR(DATA_TOO_BIG), max_word_count);
 		strcpy(ai_service->rest_response->data, error_msg);
 		ai_service->rest_response->data_size = strlen(error_msg);
 		return;
@@ -171,7 +171,7 @@ void rest_transfer(AIService *ai_service)
 		/* set function to print curl request/response */
 		curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, debug_curl);
 		/* CURLOPT_DEBUGFUNCTION has no effect if CURLOPT_VERBOSE is not set */
-		if (is_debug_level(PG_AI_DEBUG_3))
+		if (DEBUG_LEVEL(PG_AI_DEBUG_3))
 			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
 		make_curl_headers(curl, ai_service);
@@ -199,8 +199,9 @@ void rest_transfer(AIService *ai_service)
 			ereport(INFO, (errmsg("CURL ERROR: %d : %s\n\n", res,
 								  curl_easy_strerror(res))));
 			ai_service->rest_response->response_code = 0x1;
-			strcpy(ai_service->rest_response->data, TRANSFER_FAIL_MSG);
-			ai_service->rest_response->data_size = strlen(TRANSFER_FAIL_MSG);
+			strcpy(ai_service->rest_response->data, GET_ERR_STR(TRANSFER_FAIL));
+			ai_service->rest_response->data_size =
+				strlen(GET_ERR_STR(TRANSFER_FAIL));
 		}
 		else
 		{

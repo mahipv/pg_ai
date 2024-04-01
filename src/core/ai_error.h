@@ -5,6 +5,8 @@
 #define PG_AI_ERR_INT_TNSFR "Internal error: cannot transfer call."
 #define PG_AI_ERR_NULL_STR "Null"
 #define PG_AI_ERR_ARG_NULL "Argument is null."
+#define PG_AI_ERR_TRANSFER_FAIL "Transfer failed. Try again."
+#define PG_AI_ERR_DATA_TOO_BIG "Data to big, model only supports %lu words."
 
 #define GET_ERR_TEXT(err) cstring_to_text(PG_AI_ERR_##err)
 #define GET_ERR_STR(err) PG_AI_ERR_##err

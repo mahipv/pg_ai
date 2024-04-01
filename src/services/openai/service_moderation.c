@@ -170,7 +170,7 @@ int moderation_prepare_for_transfer(void *service)
 	option->value_ptr[option->current_len + prompt_len] = '"';
 	option->value_ptr[option->current_len + prompt_len + 1] = '\0';
 
-	if (is_debug_level(PG_AI_DEBUG_3))
+	if (DEBUG_LEVEL(PG_AI_DEBUG_3))
 		ereport(INFO,
 				(errmsg("Req: %s\n", ai_service->service_data->request_data)));
 	init_rest_transfer((AIService *)ai_service);

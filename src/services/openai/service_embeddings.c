@@ -505,7 +505,7 @@ void embeddings_rest_transfer(void *service)
 				strcat(query, get_option_value(options, OPTION_RECORD_COUNT));
 			}
 
-			if (is_debug_level(PG_AI_DEBUG_3))
+			if (DEBUG_LEVEL(PG_AI_DEBUG_3))
 				ereport(INFO, (errmsg("QUERY: %s \n\n", query)));
 
 			/*
