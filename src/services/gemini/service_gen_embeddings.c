@@ -535,14 +535,18 @@ void gen_embeddings_rest_transfer(void *service)
 			if (DEBUG_LEVEL(PG_AI_DEBUG_3))
 				ereport(INFO, (errmsg("QUERY: %s \n\n", query)));
 
-			/*
-			 * Return SQL query - the result set can formatted by
-			 * the caller for display.
-			 */
+			/* Return SQL: result set is formatted by caller for display */
 			strcpy(ai_service->service_data->response_data, query);
-			return;
 		} /* http response ok */
-	}	  /* query embeddings */
+		else if (ai_service->rest_response->data_size == 0)
+		{
+			/* if no error text from LLM, return stock error string */
+			strcpy(ai_service->service_data->response_data,
+				   GET_ERR_STR(TRANSFER_FAIL));
+			ai_service->rest_response->data_size =
+				strlen(GET_ERR_STR(TRANSFER_FAIL));
+		}
+	} /* query embeddings */
 	return;
 }
 

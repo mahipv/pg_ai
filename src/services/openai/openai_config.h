@@ -41,9 +41,6 @@
 #define IMAGE_GEN_AGG_PROMPT "Make a picture with the following"
 #define IMAGE_GEN_API_URL "https://api.openai.com/v1/images/generations"
 
-#define RESPONSE_JSON_DATA "data"
-#define RESPONSE_JSON_URL "url"
-
 #define IMAGE_GEN_HELP                                                         \
 	"\nFunctions:\n"                                                           \
 	"(i)  pg_ai_generate_image(<column_name>,\n"                               \

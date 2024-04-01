@@ -248,6 +248,8 @@ void image_gen_add_rest_data(char *buffer, const size_t maxlen,
  * Function to initiate the curl transfer and extract the response from
  * the json returned by the service.
  */
+#define RESPONSE_JSON_DATA "data"
+#define RESPONSE_JSON_URL "url"
 void image_gen_rest_transfer(void *service)
 {
 	Datum data;
