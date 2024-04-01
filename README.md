@@ -37,7 +37,7 @@ CREATE EXTENSION pg_ai;
 
 Choose the AI service 
 ```sql
-SET pg_ai.service = 'OPenAI'(default)|'Gemini';
+SET pg_ai.service = 'OpenAI'(default)|'Gemini';
 ```
 
 Set the API Key [OpenAI](https://platform.openai.com/api-keys) or [Google AI Studio](https://aistudio.google.com/app/apikey)
