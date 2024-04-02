@@ -274,50 +274,6 @@ int embeddings_handle_response_headers(void *service, void *user_data)
 }
 
 /*
- * Function that prepares the select query for the embeddings service.
- * The query is based on the similarity algorithm set by the user.
- */
-static void make_select_query_with_similarity(AIService *ai_service, char *data,
-											  char *query)
-{
-	ServiceOption *options = ai_service->service_data->options;
-	char *similarity_algo =
-		get_option_value(options, OPTION_SIMILARITY_ALGORITHM);
-
-	/* at this point by this time similarity_algo is set and cannot be NULL */
-
-	/* refer pgvector docs for cosine syntax */
-	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_COSINE))
-	{
-		sprintf(query,
-				"SELECT *, 1 - (%s <=> '%s') AS %s FROM %s ORDER BY %s DESC ",
-				EMBEDDINGS_COLUMN_NAME, data, OPTION_SIMILARITY_ALGORITHM,
-				get_option_value(options, OPTION_STORE_NAME),
-				OPTION_SIMILARITY_ALGORITHM);
-	}
-
-	/* refer pgvector docs for euclidean distance syntax */
-	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_EUCLIDEAN))
-	{
-		sprintf(query, "SELECT *, (%s <-> '%s') AS %s FROM %s ORDER BY %s ASC ",
-				EMBEDDINGS_COLUMN_NAME, data, OPTION_SIMILARITY_ALGORITHM,
-				get_option_value(options, OPTION_STORE_NAME),
-				OPTION_SIMILARITY_ALGORITHM);
-	}
-
-	/* refer pgvector docs for the inner product syntax */
-	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_INNER_PRODUCT))
-	{
-		sprintf(
-			query,
-			"SELECT *, (-1 * (%s <#> '%s')) AS %s FROM %s ORDER BY %s DESC ",
-			EMBEDDINGS_COLUMN_NAME, data, OPTION_SIMILARITY_ALGORITHM,
-			get_option_value(options, OPTION_STORE_NAME),
-			OPTION_SIMILARITY_ALGORITHM);
-	}
-}
-
-/*
  * Function to make a string out of the column name value pairs to get the
  * corresponding embeddings.
  */
@@ -515,8 +471,11 @@ void embeddings_rest_transfer(void *service)
 			strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
 			remove_new_lines(data);
 
-			/* query for the materialized store for ANN */
-			make_select_query_with_similarity(ai_service, data, query);
+			/* make the select query based on the similarity algo */
+			make_embeddings_query(
+				query, SQL_QUERY_MAX_LENGTH, data,
+				get_option_value(options, OPTION_STORE_NAME),
+				get_option_value(options, OPTION_SIMILARITY_ALGORITHM));
 
 			/* add the limit value to the query */
 			if (get_option_value(options, OPTION_RECORD_COUNT))

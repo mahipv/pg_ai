@@ -308,3 +308,42 @@ void set_similarity_algorithm(ServiceOption *options)
 	set_option_value(options, OPTION_SIMILARITY_ALGORITHM, similarity_algo,
 					 false /* concat */);
 }
+
+/*
+ * Function that prepares the select query for the embeddings service.
+ * The query is based on the similarity algorithm set by the user.
+ */
+void make_embeddings_query(char *query, const size_t max_query_length,
+						   const char *vector_data, const char *store_name,
+						   const char *similarity_algo)
+{
+	/* refer pgvector docs for cosine syntax */
+	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_COSINE))
+	{
+		snprintf(query, max_query_length,
+				 "SELECT *, 1 - (%s <=> '%s') AS %s FROM %s ORDER BY %s DESC ",
+				 EMBEDDINGS_COLUMN_NAME, vector_data,
+				 OPTION_SIMILARITY_ALGORITHM, store_name,
+				 OPTION_SIMILARITY_ALGORITHM);
+	}
+
+	/* refer pgvector docs for euclidean distance syntax */
+	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_EUCLIDEAN))
+	{
+		snprintf(query, max_query_length,
+				 "SELECT *, (%s <-> '%s') AS %s FROM %s ORDER BY %s ASC ",
+				 EMBEDDINGS_COLUMN_NAME, vector_data,
+				 OPTION_SIMILARITY_ALGORITHM, store_name,
+				 OPTION_SIMILARITY_ALGORITHM);
+	}
+
+	/* refer pgvector docs for the inner product syntax */
+	if (!strcasecmp(similarity_algo, EMBEDDINGS_SIMILARITY_INNER_PRODUCT))
+	{
+		snprintf(
+			query, max_query_length,
+			"SELECT *, (-1 * (%s <#> '%s')) AS %s FROM %s ORDER BY %s DESC ",
+			EMBEDDINGS_COLUMN_NAME, vector_data, OPTION_SIMILARITY_ALGORITHM,
+			store_name, OPTION_SIMILARITY_ALGORITHM);
+	}
+}

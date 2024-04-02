@@ -32,4 +32,7 @@ SPITupleTable *remove_columns_from_spitb(SPITupleTable *tuptable,
 
 int execute_query_spi(const char *query, bool read_only);
 void set_similarity_algorithm(ServiceOption *options);
+void make_embeddings_query(char *query, const size_t max_query_length,
+						   const char *vector_data, const char *store_name,
+						   const char *similarity_algo);
 #endif /* _UTILS_PG_AI_H_ */
