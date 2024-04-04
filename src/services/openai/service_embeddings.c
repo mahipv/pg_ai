@@ -471,11 +471,13 @@ void embeddings_rest_transfer(void *service)
 			strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
 			remove_new_lines(data);
 
-			/* make the select query based on the similarity algo */
+			/* names in select, to match hide_cols[] in process_result_set() */
 			make_embeddings_query(
 				query, SQL_QUERY_MAX_LENGTH, data,
 				get_option_value(options, OPTION_STORE_NAME),
-				get_option_value(options, OPTION_SIMILARITY_ALGORITHM));
+				EMBEDDINGS_COLUMN_NAME,
+				get_option_value(options, OPTION_SIMILARITY_ALGORITHM),
+				OPTION_SIMILARITY_ALGORITHM);
 
 			/* add the limit value to the query */
 			if (get_option_value(options, OPTION_RECORD_COUNT))

@@ -37,6 +37,18 @@ static void print_meta_data(TupleDesc tupdesc)
 static void process_result_set(AIService *ai_service, FuncCallContext *funcctx)
 {
 	char pk_col[COLUMN_NAME_LEN];
+
+	/* The hide_cols are the columns that are not required to be shown to the
+	 * user, but present in the SELECT statement. For eg; the
+	 * primary key which is PgAi generated, the vector column itself etc.
+	 * Making a statement with SELECT * and hiding the columns that are not
+	 * is easier than explicitly mentioning the columns to be shown as  ccolumn
+	 * structure/meta data of the vector store is not known.
+	 *
+	 *
+	 * These should match the column names/alias of the SELECT statement
+	 * returned by the respective_embeddings services (make_embeddings_query())
+	 */
 	char *hide_cols[] = {EMBEDDINGS_COLUMN_NAME, OPTION_SIMILARITY_ALGORITHM,
 						 pk_col};
 	int hide_col_count = sizeof(hide_cols) / sizeof(hide_cols[0]);
