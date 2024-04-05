@@ -347,3 +347,17 @@ void make_embeddings_query(char *query, const size_t max_query_length,
 			similarity_alias);
 	}
 }
+
+int update_embeddings_vector_store(const int64 pk_col_value, const char *data,
+								   const char *qualified_store_name)
+{
+	char query[SQL_QUERY_MAX_LENGTH];
+	char pk_col_name[COLUMN_NAME_LEN];
+	make_pk_col_name(pk_col_name, COLUMN_NAME_LEN, qualified_store_name);
+
+	/* update the row in the vector store with the embeddings */
+	sprintf(query, "UPDATE %s SET %s = '%s' WHERE %s = %ld",
+			qualified_store_name, EMBEDDINGS_COLUMN_NAME, data, pk_col_name,
+			pk_col_value);
+	return execute_query_spi(query, false /* read only */);
+}

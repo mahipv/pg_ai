@@ -22,6 +22,7 @@ int embeddings_add_rest_headers(CURL *curl, struct curl_slist **headers,
 								void *service);
 void embeddings_add_rest_data(char *buffer, const size_t maxlen,
 							  const char *data, const size_t len);
+void embeddings_process_rest_response(void *service);
 
 /* TODO */
 int embeddings_handle_response_headers(void *service, void *user_data);

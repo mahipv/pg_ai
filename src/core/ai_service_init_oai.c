@@ -86,6 +86,7 @@ static int initialize_embeddings(AIService *ai_service, char *model_name,
 	ai_service->rest_transfer = embeddings_rest_transfer;
 	ai_service->add_rest_headers = embeddings_add_rest_headers;
 	ai_service->add_rest_data = embeddings_add_rest_data;
+	ai_service->process_rest_response = embeddings_process_rest_response;
 
 	/* set the model name and description */
 	strcpy(model_name, MODEL_OPENAI_EMBEDDINGS_NAME);

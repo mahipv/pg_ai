@@ -86,6 +86,7 @@ static int initialize_gen_embeddings(AIService *ai_service, char *model_name,
 	ai_service->rest_transfer = gen_embeddings_rest_transfer;
 	ai_service->add_rest_headers = gen_embeddings_add_rest_headers;
 	ai_service->add_rest_data = gen_embeddings_add_rest_data;
+	ai_service->process_rest_response = gen_embeddings_process_rest_response;
 
 	/* set the model name and description */
 	strcpy(model_name, MODEL_GEMINI_EMBEDDINGS_NAME);

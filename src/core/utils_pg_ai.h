@@ -37,4 +37,7 @@ void make_embeddings_query(char *query, const size_t max_query_length,
 						   const char *embeddings_column_name,
 						   const char *similarity_algorithm,
 						   const char *similarity_alias);
+int update_embeddings_vector_store(const int64 pk_col_value, const char *data,
+								   const char *qualified_store_name);
+
 #endif /* _UTILS_PG_AI_H_ */

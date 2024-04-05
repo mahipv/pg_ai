@@ -79,6 +79,7 @@ typedef int (*AddRestHeaders)(CURL *curl, struct curl_slist **headers,
 							  void *service);
 typedef void (*AddRestData)(char *buffer, const size_t maxlen, const char *data,
 							const size_t len);
+typedef void (*ProcessRestResponse)(void *service);
 
 /* PgAI internal calls */
 typedef void (*DefineCommonOptions)(void *service);
@@ -163,8 +164,14 @@ typedef struct AIService
 	/* call back to add data to the curl POST request */
 	AddRestData add_rest_data;
 
+	/* call back to handle the REST response */
+	ProcessRestResponse process_rest_response;
+
 	/* PgAI internal calls */
 	DefineCommonOptions define_common_options;
+
+	/* user data that needs to be persisted across calls */
+	void *user_data;
 
 } AIService;
 
@@ -220,5 +227,10 @@ ServiceData *create_service_data(AIService *ai_service,
 
 #define REST_TRANSFER(ai_service)                                              \
 	((RestTransfer)(ai_service->rest_transfer))(ai_service)
+
+typedef struct EmbeddingsData
+{
+	int64 pk_col_value;
+} EmbeddingsData;
 
 #endif /* _AI_SERVICE_H_ */

@@ -64,6 +64,9 @@ void embeddings_initialize_service(void *service)
 {
 	AIService *ai_service = (AIService *)service;
 
+	ai_service->user_data = (void *)MemoryContextAllocZero(
+		ai_service->memory_context, sizeof(EmbeddingsData));
+
 	/* define the options for this service - stored in service data */
 	define_options(ai_service);
 }
@@ -308,14 +311,14 @@ static void add_cols_name_value_to_prompt(char *buf, const size_t max_buf_size,
  */
 #define RESPONSE_JSON_DATA "data"
 #define RESPONSE_JSON_EMBEDDING "embedding"
-static Datum extract_vector_from_json(char *json)
+static void extract_vector_from_json(char *response)
 {
 	Datum datas;
 	Datum first_choice;
 	Datum return_text;
 
 	datas = DirectFunctionCall2(
-		json_object_field_text, CStringGetTextDatum(json),
+		json_object_field_text, CStringGetTextDatum(response),
 		PointerGetDatum(cstring_to_text(RESPONSE_JSON_DATA)));
 	first_choice =
 		DirectFunctionCall2(json_array_element_text, datas, PointerGetDatum(0));
@@ -323,7 +326,39 @@ static Datum extract_vector_from_json(char *json)
 		json_object_field_text, first_choice,
 		PointerGetDatum(cstring_to_text(RESPONSE_JSON_EMBEDDING)));
 
-	return return_text;
+	/* the response is stored back in the source */
+	strcpy(response, text_to_cstring(DatumGetTextPP(return_text)));
+	remove_new_lines(response);
+}
+
+/*
+ * Call back top Process the response from the REST service. Currently used only
+ * by create_vector_store
+ */
+void embeddings_process_rest_response(void *service)
+{
+	AIService *ai_service = (AIService *)service;
+	EmbeddingsData *user_data = (EmbeddingsData *)ai_service->user_data;
+
+	/* string terminate the response data */
+	*((char *)(ai_service->rest_response->data) +
+	  ai_service->rest_response->data_size) = '\0';
+
+	/* extract the embeddings from the response json */
+	if (ai_service->rest_response->response_code == HTTP_OK)
+	{
+		char *data = (char *)(ai_service->rest_response->data);
+		extract_vector_from_json(data);
+		update_embeddings_vector_store(
+			user_data->pk_col_value, data,
+			get_option_value(ai_service->service_data->options,
+							 OPTION_STORE_NAME));
+
+		/* make way for the next call */
+		ai_service->rest_response->data_size = 0;
+		*((char *)(ai_service->rest_response->data) +
+		  ai_service->rest_response->data_size) = '\0';
+	}
 }
 
 /*
@@ -334,12 +369,10 @@ static void create_embeddings(AIService *ai_service, char *query)
 {
 	int ret;
 	int count = 0;
-	Datum return_text;
-	int64 pk_col_value = -1;
 	char pk_col[COLUMN_NAME_LEN];
-	char data[SQL_QUERY_MAX_LENGTH];
 	char prompt_str[MAX_BYTE_VALUE];
 	ServiceOption *options = ai_service->service_data->options;
+	EmbeddingsData *user_data = (EmbeddingsData *)ai_service->user_data;
 
 	/* the start of the prompt is the notes passed to pg_ai_function */
 	snprintf(prompt_str, MAX_BYTE_VALUE, "%s",
@@ -354,9 +387,6 @@ static void create_embeddings(AIService *ai_service, char *query)
 	ret = SPI_exec(query, count);
 	if (ret > 0 && SPI_tuptable != NULL)
 	{
-		size_t max_buf_size = ai_service->service_data->max_request_size;
-		char *buf =
-			MemoryContextAlloc(ai_service->memory_context, max_buf_size);
 		SPITupleTable *tuptable = SPI_tuptable;
 		TupleDesc tupdesc = tuptable->tupdesc;
 
@@ -367,48 +397,24 @@ static void create_embeddings(AIService *ai_service, char *query)
 			HeapTuple tuple = tuptable->vals[j];
 
 			/* start the prompt with the NL notes passed to function */
-			snprintf(buf, MAX_BYTE_VALUE, "%s ", prompt_str);
+			snprintf(ai_service->service_data->request_data, MAX_BYTE_VALUE,
+					 "%s ", prompt_str);
 
 			/* concat column name:value pairs to the prompt */
-			add_cols_name_value_to_prompt(buf, max_buf_size, tupdesc, tuple,
-										  pk_col, &pk_col_value);
+			add_cols_name_value_to_prompt(
+				ai_service->service_data->request_data,
+				ai_service->service_data->max_request_size, tupdesc, tuple,
+				pk_col, &(user_data->pk_col_value));
 
 			if (DEBUG_LEVEL(PG_AI_DEBUG_3))
-				ereport(INFO, (errmsg("PROMPT: %s\n\n", buf)));
-
-			/* add the col values buffer to the request */
-			strcpy(ai_service->service_data->request_data, buf);
+				ereport(INFO, (errmsg("PROMPT: %s\n\n",
+									  ai_service->service_data->request_data)));
 
 			/* make a rest call to get the embeddings */
 			rest_transfer(ai_service);
-			*((char *)(ai_service->rest_response->data) +
-			  ai_service->rest_response->data_size) = '\0';
-
-			/* extract the embeddings from the response json */
-			if (ai_service->rest_response->response_code == HTTP_OK)
-			{
-				return_text = extract_vector_from_json(
-					(char *)(ai_service->rest_response->data));
-				strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
-				remove_new_lines(data);
-
-				/* update the row in the vector store with the embeddings */
-				sprintf(query, "UPDATE %s SET %s = '%s' WHERE %s%s = %ld",
-						get_option_value(options, OPTION_STORE_NAME),
-						EMBEDDINGS_COLUMN_NAME, data,
-						get_option_value(options, OPTION_STORE_NAME), PK_SUFFIX,
-						pk_col_value);
-				execute_query_spi(query, false /* read only */);
-
-				/* make way for the next call */
-				ai_service->rest_response->data_size = 0;
-				*((char *)(ai_service->rest_response->data) +
-				  ai_service->rest_response->data_size) = '\0';
-			}
+			ai_service->process_rest_response(ai_service);
 		} /* end of while cursor */
-		if (buf)
-			pfree(buf);
-	} /* rows returned */
+	}	  /* rows returned */
 	SPI_finish();
 
 	/* return the store name if no error */
@@ -431,10 +437,8 @@ static void create_embeddings(AIService *ai_service, char *query)
  */
 void embeddings_rest_transfer(void *service)
 {
-	Datum return_text;
 	AIService *ai_service = (AIService *)(service);
 	ServiceOption *options = ai_service->service_data->options;
-	char data[SQL_QUERY_MAX_LENGTH];
 	char query[SQL_QUERY_MAX_LENGTH];
 
 	ai_service = (AIService *)(service);
@@ -465,11 +469,10 @@ void embeddings_rest_transfer(void *service)
 		/* make the SQL query */
 		if (ai_service->rest_response->response_code == HTTP_OK)
 		{
+			char *data = (char *)(ai_service->rest_response->data);
+
 			/* extract the embeddings from response */
-			return_text = extract_vector_from_json(
-				(char *)(ai_service->rest_response->data));
-			strcpy(data, text_to_cstring(DatumGetTextPP(return_text)));
-			remove_new_lines(data);
+			extract_vector_from_json(data);
 
 			/* names in select, to match hide_cols[] in process_result_set() */
 			make_embeddings_query(
