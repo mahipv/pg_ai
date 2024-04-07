@@ -39,8 +39,8 @@
 #define MAX_BYTE_VALUE 255
 
 /* buffer sizes */
-#define SERVICE_MAX_REQUEST_SIZE (1 * 1024 * 1024)
-#define SERVICE_MAX_RESPONSE_SIZE (1 * 1024 * 1024)
+#define SERVICE_MAX_REQUEST_SIZE (256 * 1024)
+#define SERVICE_MAX_RESPONSE_SIZE (256 * 1024)
 
 /* default array lengths used within pg_ai */
 #define PG_AI_NAME_LENGTH MAX_BYTE_VALUE

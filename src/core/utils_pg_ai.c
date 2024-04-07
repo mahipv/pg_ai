@@ -354,6 +354,7 @@ int update_embeddings_vector_store(const int64 pk_col_value, const char *data,
 	char query[SQL_QUERY_MAX_LENGTH];
 	char pk_col_name[COLUMN_NAME_LEN];
 	make_pk_col_name(pk_col_name, COLUMN_NAME_LEN, qualified_store_name);
+	ereport(INFO, (errmsg("Before Update query\n")));
 
 	/* update the row in the vector store with the embeddings */
 	sprintf(query, "UPDATE %s SET %s = '%s' WHERE %s = %ld",

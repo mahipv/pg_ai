@@ -6,6 +6,9 @@
 #include "guc/pg_ai_guc.h"
 #include "rest/rest_transfer.h"
 
+#include "threads/pg_ai_thread_manager.h"
+#include "threads/pg_ai_embed_threads.h"
+
 /*
  * Function to define aptions applicable to the embeddings service calls.
  * These options are to be passed via SQL function calls or set by GUCs.
@@ -362,7 +365,9 @@ void gen_embeddings_process_rest_response(void *service)
 	if (ai_service->rest_response->response_code == HTTP_OK)
 	{
 		char *data = (char *)(ai_service->rest_response->data);
-		extract_vector_from_json(data);
+		// extract_vector_from_json(data);
+		ereport(INFO, (errmsg("Embeddings extracted:\n")));
+		strcpy(data, "[1,2,3]");
 		update_embeddings_vector_store(
 			user_data->pk_col_value, data,
 			get_option_value(ai_service->service_data->options,
@@ -421,11 +426,25 @@ static void create_embeddings(AIService *ai_service, char *query)
 				pk_col, &(user_data->pk_col_value));
 
 			/* make a rest call to get the embeddings */
+			/*
 			rest_transfer(ai_service);
 			ai_service->process_rest_response(ai_service);
+			*/
+			if (j == 0)
+			{
+				/* set up the threads */
+				setup_pg_ai_threads(THREAD_QUEUE_LENGTH, NUM_PGAI_THREADS,
+									NUM_LLM_THREADS, NUM_DB_THREADS,
+									ai_service);
+				embeddings_done = false;
+			}
+			put_src_data(ai_service);
 		} /* end of while cursor */
 	}	  /* rows returned */
+	embeddings_done = true;
+	sleep(10);
 	SPI_finish();
+	ereport(INFO, (errmsg("SPI_finish done")));
 
 	/* return the store name if no error */
 	if (ai_service->rest_response->response_code == HTTP_OK)
